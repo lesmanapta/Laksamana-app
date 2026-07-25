@@ -1,0 +1,276 @@
+import React, { useState } from 'react';
+
+export default function OrderPage({ selectedService, services, onOrderSuccess }) {
+  const [activeService, setActiveService] = useState(selectedService || services[0]);
+  const [file, setFile] = useState(null);
+  const [plagiarismFile, setPlagiarismFile] = useState(null);
+  const [whatsapp, setWhatsapp] = useState('');
+  const [email, setEmail] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('Midtrans QRIS / GoPay');
+  const [tokenCode, setTokenCode] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const isParafrase = activeService && (activeService.slug === 'parafrase' || activeService.id === 'parafrase');
+  const isDrillbit = activeService && (activeService.slug === 'cek-drillbit' || activeService.id === 'cek-drillbit');
+
+  const estimatedWordCount = file ? Math.max(150, Math.ceil(file.size / 18)) : 0;
+  const estimatedDrillbitPrice = estimatedWordCount * 10;
+
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
+  };
+
+  const handlePlagiarismFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setPlagiarismFile(e.target.files[0]);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!file) {
+      setError('Harap pilih file dokumen (.pdf atau .docx) terlebih dahulu!');
+      return;
+    }
+    if (isParafrase && !plagiarismFile) {
+      setError('Untuk Jasa Parafrase, Anda wajib mengunggah File Hasil Cek Plagiasi / Turnitin!');
+      return;
+    }
+    if (!whatsapp) {
+      setError('Nomor WhatsApp wajib diisi untuk penerimaan hasil laporan & notifikasi.');
+      return;
+    }
+
+    setError('');
+    setSubmitting(true);
+
+    const formData = new FormData();
+    formData.append('document', file);
+    if (plagiarismFile) {
+      formData.append('plagiarismReport', plagiarismFile);
+    }
+
+    formData.append('serviceSlug', activeService ? activeService.slug : 'cek-plagiasi');
+    formData.append('serviceName', activeService ? activeService.title : 'Cek Plagiasi No-Repository');
+    formData.append('whatsapp', whatsapp);
+    formData.append('email', email);
+    formData.append('paymentMethod', paymentMethod);
+    formData.append('price', isDrillbit ? estimatedDrillbitPrice : (activeService ? activeService.price : 10000));
+
+    try {
+      const res = await fetch('/api/orders/create', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || 'Gagal memproses order');
+
+      if (window.snap && data.snapToken && !data.snapToken.includes('SNAP-SIMULATED')) {
+        window.snap.pay(data.snapToken, {
+          onSuccess: function (result) { onOrderSuccess(data.order); },
+          onPending: function (result) { onOrderSuccess(data.order); },
+          onError: function (result) { setError('Pembayaran Midtrans gagal atau dibatalkan.'); },
+          onClose: function () { onOrderSuccess(data.order); }
+        });
+      } else {
+        onOrderSuccess(data.order);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="container my-5">
+      <div className="row justify-content-center">
+        <div className="col-12 col-lg-8">
+          <div className="card mint-card border-0 p-4 shadow-sm">
+            <h4 className="fw-bold mb-4 text-center text-mint-heading">
+              Form Pemesanan Dokumen <span className="text-mint-primary">Laksamana</span>
+            </h4>
+
+            {error && <div className="alert alert-danger small mb-4">{error}</div>}
+
+            <form onSubmit={handleSubmit}>
+              <div className="mb-4">
+                <label className="form-label fw-semibold small text-secondary">PILIH LAYANAN LAKSAMANA</label>
+                <select 
+                  className="form-select rounded-3 py-2 fw-semibold text-mint-heading"
+                  value={activeService ? activeService.id : ''}
+                  onChange={(e) => {
+                    const found = services.find(s => s.id === e.target.value);
+                    setActiveService(found);
+                  }}
+                >
+                  {services.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.title} — {s.unit === 'kata' ? 'Rp 10 / kata' : `Rp ${s.price.toLocaleString('id-ID')} / ${s.unit}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* UPLOAD FILE 1: Dokumen Utama */}
+              <div className="mb-4">
+                <label className="form-label fw-semibold small text-secondary">
+                  1. UPLOAD DOKUMEN YANG INGIN DIPROSES (.PDF / .DOCX)
+                </label>
+                <div className="border border-2 border-dashed rounded-4 p-4 text-center bg-mint-light cursor-pointer">
+                  <i className="ri-file-word-line display-4 text-mint-primary mb-2"></i>
+                  <p className="mb-1 fw-medium text-mint-heading">Klik atau seret file dokumen kamu ke sini</p>
+                  <small className="text-muted d-block mb-3">Dokumen asli tugas/skripsi yang mau dicek/diparafrase (Maks 25MB)</small>
+                  <input 
+                    type="file" 
+                    className="form-control d-none" 
+                    id="fileUploadInput" 
+                    accept=".pdf,.docx,.doc"
+                    onChange={handleFileChange}
+                  />
+                  <label htmlFor="fileUploadInput" className="btn btn-mint-outline btn-sm rounded-pill px-4">
+                    {file ? file.name : 'Pilih File Dokumen Utama'}
+                  </label>
+                </div>
+                {file && (
+                  <div className="small text-success mt-2 fw-medium d-flex align-items-center gap-1">
+                    <i className="ri-checkbox-circle-fill text-mint-primary"></i> Terpilih: {file.name} ({(file.size / 1024).toFixed(1)} KB)
+                  </div>
+                )}
+              </div>
+
+              {/* Drillbit Per-Word Info Box */}
+              {isDrillbit && file && (
+                <div className="alert bg-mint-light border border-success border-opacity-25 rounded-4 p-3 mb-4">
+                  <div className="d-flex align-items-center gap-2 mb-1">
+                    <i className="ri-file-search-line fs-4 text-mint-primary"></i>
+                    <span className="fw-bold text-mint-heading">Kalkulasi Tarif Drillbit (Per Kata):</span>
+                  </div>
+                  <div className="small text-secondary">
+                    Estimasi Jumlah Kata: <b className="text-dark">{estimatedWordCount.toLocaleString('id-ID')} kata</b> × Rp 10/kata
+                  </div>
+                  <div className="fs-5 fw-bold text-mint-primary mt-1">
+                    Total Tarif: Rp {estimatedDrillbitPrice.toLocaleString('id-ID')}
+                  </div>
+                </div>
+              )}
+
+              {/* UPLOAD FILE 2: Khusus Jasa Parafrase */}
+              {isParafrase && (
+                <div className="mb-4 alert bg-mint-light border border-success border-opacity-25 rounded-4 p-4">
+                  <div className="d-flex align-items-center gap-2 mb-2">
+                    <i className="ri-file-search-line fs-4 text-mint-primary"></i>
+                    <label className="form-label fw-bold small text-mint-heading mb-0">
+                      2. UPLOAD FILE LAPORAN HASIL CEK PLAGIASI / TURNITIN (.PDF)
+                    </label>
+                  </div>
+                  <p className="small text-secondary mb-3">
+                    Unggah file PDF hasil cek Turnitin/Plagiasi Anda agar tim penulis Laksamana tahu bagian paragraf mana yang harus diparafrase.
+                  </p>
+
+                  <div className="border border-2 border-dashed rounded-3 p-3 text-center bg-white">
+                    <input 
+                      type="file" 
+                      className="form-control d-none" 
+                      id="plagiarismReportInput" 
+                      accept=".pdf,.txt,.docx"
+                      onChange={handlePlagiarismFileChange}
+                    />
+                    <label htmlFor="plagiarismReportInput" className="btn btn-mint-primary btn-sm rounded-pill px-4 font-weight-bold">
+                      {plagiarismFile ? plagiarismFile.name : 'Pilih File Hasil Cek Plagiasi'}
+                    </label>
+                  </div>
+                  {plagiarismFile && (
+                    <div className="small text-success mt-2 fw-medium d-flex align-items-center gap-1">
+                      <i className="ri-checkbox-circle-fill text-mint-primary"></i> Laporan Plagiasi Terpilih: {plagiarismFile.name}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="row mb-4">
+                <div className="col-md-6 mb-3 mb-md-0">
+                  <label className="form-label fw-semibold small text-secondary">NO. WHATSAPP (Notifikasi WA Otomatis)</label>
+                  <input 
+                    type="tel" 
+                    className="form-control rounded-3 py-2" 
+                    placeholder="Contoh: 081234567890" 
+                    required
+                    value={whatsapp}
+                    onChange={(e) => setWhatsapp(e.target.value)}
+                  />
+                  <small className="text-muted">Hasil cek & notifikasi bayar dikirim ke WA ini</small>
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label fw-semibold small text-secondary">ALAMAT EMAIL (Opsional)</label>
+                  <input 
+                    type="email" 
+                    className="form-control rounded-3 py-2" 
+                    placeholder="nama@email.com" 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="form-label fw-semibold small text-secondary">KODE TOKEN / KUPON PAKET LAKSAMANA (Opsional)</label>
+                <div className="input-group">
+                  <input 
+                    type="text" 
+                    className="form-control rounded-start-3" 
+                    placeholder="Masukkan Kode Token Paket Laksamana" 
+                    value={tokenCode}
+                    onChange={(e) => setTokenCode(e.target.value)}
+                  />
+                  <button className="btn btn-outline-secondary rounded-end-3" type="button">
+                    Gunakan Token
+                  </button>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="form-label fw-semibold small mb-2 text-secondary">METODE PEMBAYARAN MIDTRANS</label>
+                <div className="row g-2">
+                  {['Midtrans QRIS / GoPay', 'Bank Transfer (BCA/Mandiri/BRI)', 'ShopeePay / OVO / Dana'].map(pm => (
+                    <div key={pm} className="col-md-4">
+                      <div 
+                        onClick={() => setPaymentMethod(pm)}
+                        className={`p-3 rounded-3 border cursor-pointer text-center small fw-medium ${paymentMethod === pm ? 'border-success bg-mint-light text-mint-heading fw-bold' : 'bg-light text-secondary'}`}
+                      >
+                        {pm}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-mint-light p-3 rounded-3 d-flex align-items-center justify-content-between mb-4 border border-success border-opacity-10">
+                <span className="fw-medium text-mint-heading">Total Pembayaran:</span>
+                <span className="fs-4 fw-extrabold text-mint-primary">
+                  Rp {isDrillbit && file ? estimatedDrillbitPrice.toLocaleString('id-ID') : (activeService ? activeService.price.toLocaleString('id-ID') : '10.000')}
+                </span>
+              </div>
+
+              <button 
+                type="submit" 
+                className="btn btn-mint-primary w-100 rounded-pill py-3 fw-bold fs-6 shadow-sm"
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <span><span className="spinner-border spinner-border-sm me-2"></span>Menghubungkan Midtrans...</span>
+                ) : (
+                  <span>Bayar via Midtrans & Proses Dokumen <i className="ri-secure-payment-line ms-1"></i></span>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,20 @@
+# Node.js dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Production build outputs
+client/dist/
+dist/
+
+# Uploaded files & reports
+server/uploads/
+server/uploads/reports/
+
+# Environment credentials
+.env
+server/.env
+
+# System files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,15 @@
+{
+  "name": "laksamana-fullstack-app",
+  "version": "1.0.0",
+  "description": "Full-stack Plagiarism & AI Detection Platform (Laksamana)",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "server": "node server/server.js",
+    "client": "npm run dev --prefix client",
+    "dev": "concurrently \"npm run server\" \"npm run client\""
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

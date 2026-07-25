@@ -1,0 +1,148 @@
+:root {
+  --mint-primary: #10b981;
+  --mint-primary-hover: #059669;
+  --mint-dark: #064e3b;
+  --mint-light-bg: #f0fdf4;
+  --mint-accent-bg: #ecfdf5;
+  --mint-border: #a7f3d0;
+  --mint-glow: rgba(16, 185, 129, 0.15);
+  
+  --text-main: #1f2937;
+  --text-muted: #6b7280;
+  --text-heading: #064e3b;
+
+  --card-shadow: 0 10px 30px -5px rgba(16, 185, 129, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+  --card-shadow-hover: 0 20px 40px -10px rgba(16, 185, 129, 0.22);
+}
+
+body {
+  font-family: 'Poppins', sans-serif;
+  color: var(--text-main);
+  background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 400px, #f0fdf4 100%);
+  overflow-x: hidden;
+}
+
+/* Custom Soft Mint Color Utilities */
+.bg-mint-primary {
+  background-color: var(--mint-primary) !important;
+}
+
+.bg-mint-light {
+  background-color: var(--mint-light-bg) !important;
+}
+
+.bg-mint-dark {
+  background-color: var(--mint-dark) !important;
+}
+
+.text-mint-primary {
+  color: var(--mint-primary) !important;
+}
+
+.text-mint-heading {
+  color: var(--mint-heading) !important;
+}
+
+/* Custom Soft Buttons */
+.btn-mint-primary {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  border: none;
+  font-weight: 600;
+  box-shadow: 0 4px 14px var(--mint-glow);
+  transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+.btn-mint-primary:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.35);
+}
+
+.btn-mint-outline {
+  background: transparent;
+  color: var(--mint-primary);
+  border: 2px solid var(--mint-primary);
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn-mint-outline:hover {
+  background: var(--mint-primary);
+  color: #ffffff;
+}
+
+/* Glassmorphism Frosted Navbar */
+.navbar-custom {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--mint-border);
+  padding: 0.85rem 0;
+}
+
+.navbar-brand {
+  font-weight: 800;
+  font-size: 1.4rem;
+  color: var(--mint-dark);
+  letter-spacing: -0.5px;
+}
+
+/* Redesigned Sleek Cards */
+.mint-card {
+  background: #ffffff;
+  border: 1px solid rgba(16, 185, 129, 0.15);
+  border-radius: 20px;
+  box-shadow: var(--card-shadow);
+  transition: all 0.35s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+.mint-card:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--card-shadow-hover);
+  border-color: var(--mint-primary);
+}
+
+.icon-mint-box {
+  width: 58px;
+  height: 58px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  color: var(--mint-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.65rem;
+}
+
+/* Hero Badge */
+.pill-badge-mint {
+  background: #d1fae5;
+  color: var(--mint-dark);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.4rem 1rem;
+  border-radius: 50px;
+  border: 1px solid var(--mint-border);
+}
+
+/* Timeline Step styling */
+.step-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  margin: 0 auto 10px;
+  transition: all 0.3s ease;
+}
+
+.timeline-step.completed .step-circle {
+  background: var(--mint-primary);
+  color: #ffffff;
+  box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.2);
+}
