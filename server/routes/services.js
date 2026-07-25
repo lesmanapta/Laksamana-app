@@ -11,7 +11,8 @@ const servicesList = [
     price: 10000,
     unit: 'file',
     maxPages: 800,
-    description: 'Pengecekan keaslian tulisan cepat 24 jam tanpa menyimpan dokumen ke repository Turnitin.'
+    description: 'Pengecekan keaslian tulisan cepat 24 jam tanpa menyimpan dokumen ke repository Turnitin.',
+    active: true
   },
   {
     id: 'cek-drillbit',
@@ -22,7 +23,8 @@ const servicesList = [
     price: 10,
     unit: 'kata',
     maxPages: 500,
-    description: 'Solusi pemeriksaan plagiasi jurnal & skripsi berbasis algoritma Drillbit (Tarif Rp 10/kata).'
+    description: 'Solusi pemeriksaan plagiasi jurnal & skripsi berbasis algoritma Drillbit (Tarif Rp 10/kata).',
+    active: false
   },
   {
     id: 'parafrase',
@@ -33,7 +35,8 @@ const servicesList = [
     price: 35000,
     unit: 'halaman',
     maxPages: 100,
-    description: 'Layanan penulisan ulang profesional untuk menurunkan skor Turnitin secara signifikan.'
+    description: 'Layanan penulisan ulang profesional untuk menurunkan skor Turnitin secara signifikan.',
+    active: true
   },
   {
     id: 'gptzero',
@@ -44,7 +47,8 @@ const servicesList = [
     price: 15000,
     unit: 'file',
     maxPages: 300,
-    description: 'Analisis mendalam persentase konten buatan AI dengan laporan skor probabilitas detail.'
+    description: 'Analisis mendalam persentase konten buatan AI dengan laporan skor probabilitas detail.',
+    active: false
   },
   {
     id: 'humanizer',
@@ -55,7 +59,8 @@ const servicesList = [
     price: 25000,
     unit: 'file',
     maxPages: 200,
-    description: 'Menghilangkan pola sintaksis buatan AI sehingga lolos deteksi GPTZero dan Turnitin AI.'
+    description: 'Menghilangkan pola sintaksis buatan AI sehingga lolos deteksi GPTZero dan Turnitin AI.',
+    active: false
   }
 ];
 
