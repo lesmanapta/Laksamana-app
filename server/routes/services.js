@@ -24,7 +24,7 @@ const servicesList = [
     unit: 'kata',
     maxPages: 500,
     description: 'Solusi pemeriksaan plagiasi jurnal & skripsi berbasis algoritma Drillbit (Tarif Rp 10/kata).',
-    active: false
+    active: true
   },
   {
     id: 'parafrase',
