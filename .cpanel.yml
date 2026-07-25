@@ -3,3 +3,5 @@ deployment:
   tasks:
     - export DEPLOYPATH=/home/smbtrave/laksamana-app
     - /bin/cp -R * $DEPLOYPATH
+    - cd $DEPLOYPATH/client && /usr/local/bin/npm install && /usr/local/bin/npm run build
+    - cd $DEPLOYPATH/server && /usr/local/bin/npm install --production
