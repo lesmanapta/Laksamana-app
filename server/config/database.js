@@ -1,5 +1,4 @@
 const mysql = require('mysql2/promise');
-const bcrypt = require('bcryptjs');
 
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
@@ -48,7 +47,7 @@ async function initDatabase() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
-    // Create 'orders' table with completed_at timestamp column
+    // Create 'orders' table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS orders (
         id VARCHAR(50) PRIMARY KEY,
@@ -75,7 +74,21 @@ async function initDatabase() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
-    // Ensure completed_at column exists if table was previously created
+    // Create dedicated 'transactions' table for Midtrans payment attempts
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS transactions (
+        id VARCHAR(100) PRIMARY KEY,
+        order_id VARCHAR(50) NOT NULL,
+        amount INT DEFAULT 0,
+        payment_type VARCHAR(50) DEFAULT 'gopay_qris',
+        snap_token VARCHAR(255),
+        snap_redirect_url VARCHAR(255),
+        status VARCHAR(30) DEFAULT 'PENDING',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX (order_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
     try {
       await pool.query('ALTER TABLE orders ADD COLUMN completed_at TIMESTAMP NULL DEFAULT NULL;');
     } catch (e) {}

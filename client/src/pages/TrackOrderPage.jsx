@@ -43,9 +43,9 @@ export default function TrackOrderPage({ initialOrderId }) {
   return (
     <div className="container my-5">
       <div className="text-center mb-5">
-        <span className="pill-badge-mint mb-2 d-inline-block">PELAKAKAN TRANSAKSI</span>
+        <span className="pill-badge-mint mb-2 d-inline-block">PELAKAKAN TRANSAKSI & STATUS</span>
         <h2 className="fw-extrabold text-mint-heading">Cek Status & Unduh <span className="text-mint-primary">Laporan</span></h2>
-        <p className="text-muted">Masukkan Kode Order (LKS-XXXXXX) atau Nomor WhatsApp Anda</p>
+        <p className="text-muted">Masukkan Kode Order (LKS-XXXXXX) atau Nomor WhatsApp Anda untuk melacak semua pesanan</p>
       </div>
 
       {/* Search Bar */}
@@ -55,7 +55,7 @@ export default function TrackOrderPage({ initialOrderId }) {
             <input 
               type="text" 
               className="form-control form-control-lg rounded-pill px-4 shadow-sm border-success border-opacity-25"
-              placeholder="Contoh: LKS-984210 / 081234567890"
+              placeholder="Masukkan Kode Order / Nomor WA (0812xxxx)"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -77,6 +77,7 @@ export default function TrackOrderPage({ initialOrderId }) {
         {orders.map(ord => {
           const rawQrString = `00020101021226580016ID.CO.TELKOM.WWW01189360091100215949434802150000000000000000303UMI51440014ID.LINKAJA.WWW011893600911002159494348021500000000000000005204581253033605405${ord.amount || 10000}5802ID5912Laksamana.id6007JAKARTA6304A1B2`;
           const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(rawQrString)}&size=260&margin=1`;
+          const isCompleted = ord.status === 'COMPLETED';
 
           return (
             <div key={ord.id} className="col-12 col-lg-8">
@@ -88,8 +89,8 @@ export default function TrackOrderPage({ initialOrderId }) {
                     </span>
                     <h5 className="fw-bold text-mint-heading mb-0">{ord.serviceName}</h5>
                   </div>
-                  <span className={`badge px-3 py-2 rounded-pill fs-6 ${ord.status === 'COMPLETED' ? 'bg-success text-white' : 'bg-warning text-dark'}`}>
-                    {ord.status === 'COMPLETED' ? '✅ SELSEAI' : '⏳ DALAM PROSES'}
+                  <span className={`badge px-3 py-2 rounded-pill fs-6 ${isCompleted ? 'bg-success text-white' : 'bg-warning text-dark'}`}>
+                    {isCompleted ? '✅ SELESAI' : '⏳ SEDANG DIPROSES'}
                   </span>
                 </div>
 
@@ -98,13 +99,18 @@ export default function TrackOrderPage({ initialOrderId }) {
                     <div className="bg-mint-light p-3 rounded-4 mb-3 border border-success border-opacity-10">
                       <div className="small text-muted mb-1">DOKUMEN DIUJI</div>
                       <div className="fw-bold text-dark text-truncate">{ord.fileName}</div>
-                      <div className="small text-muted mt-2">Nomor WA: {ord.whatsapp}</div>
-                      <div className="small text-muted">Tanggal: {new Date(ord.createdAt).toLocaleString('id-ID')}</div>
+                      <div className="small text-muted mt-2">Nomor WA: <b>{ord.whatsapp}</b></div>
+                      <div className="small text-muted">Tanggal Order: {new Date(ord.createdAt).toLocaleString('id-ID')}</div>
+                      {ord.completedAt && (
+                        <div className="small text-success fw-semibold mt-1">
+                          Waktu Selesai: {new Date(ord.completedAt).toLocaleString('id-ID')}
+                        </div>
+                      )}
                     </div>
 
-                    {ord.status === 'COMPLETED' && ord.result && (
+                    {isCompleted && ord.result ? (
                       <div className="p-3 bg-white border border-success border-opacity-25 rounded-4 mb-3">
-                        <h6 className="fw-bold text-mint-heading mb-3">📊 Hasil Skor Pemeriksaan:</h6>
+                        <h6 className="fw-bold text-mint-heading mb-3">📊 Hasil Skor Pemeriksaan Resmi:</h6>
                         <div className="row g-2 text-center">
                           <div className="col-6">
                             <div className="p-2 bg-mint-light rounded-3">
@@ -120,21 +126,31 @@ export default function TrackOrderPage({ initialOrderId }) {
                           </div>
                         </div>
                       </div>
+                    ) : (
+                      <div className="alert bg-mint-light border border-warning border-opacity-50 p-3 rounded-4 mb-3">
+                        <div className="fw-bold text-mint-heading mb-1 d-flex align-items-center gap-1">
+                          <i className="ri-timer-flash-line fs-5 text-warning"></i> Dokumen Sedang Diproses System
+                        </div>
+                        <div className="small text-secondary">
+                          Hasil skor belum keluar karena file Anda sedang dalam antrean proses pemeriksaan <b>{ord.serviceName}</b>.
+                          Setelah selesai, laporan resmi dan link download akan dikirimkan otomatis ke WhatsApp Anda.
+                        </div>
+                      </div>
                     )}
 
-                    {ord.status === 'COMPLETED' ? (
+                    {isCompleted ? (
                       <a 
                         href={`http://localhost:5000/api/orders/download/${ord.id}`} 
-                        className="btn btn-mint-primary w-100 rounded-pill py-2.5 fw-bold"
+                        className="btn btn-mint-primary w-100 rounded-pill py-2.5 fw-bold shadow-sm"
                         target="_blank"
                         rel="noreferrer"
                       >
                         <i className="ri-file-download-line me-1"></i> Unduh Laporan Resmi (.TXT / .PDF)
                       </a>
                     ) : (
-                      <div className="alert alert-info small mb-0 rounded-3">
-                        <i className="ri-information-line me-1"></i> Laporan sedang diproses otomatis oleh Worker Engine. Notifikasi & file laporan fisik akan otomatis dikirimkan ke WhatsApp Anda.
-                      </div>
+                      <button className="btn btn-outline-secondary w-100 rounded-pill py-2.5 small" disabled>
+                        <i className="ri-time-line me-1"></i> Menunggu Proses Selesai...
+                      </button>
                     )}
                   </div>
 

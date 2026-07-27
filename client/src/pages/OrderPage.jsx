@@ -10,6 +10,9 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
   const [tokenCode, setTokenCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  
+  // Post-order success modal state
+  const [createdOrder, setCreatedOrder] = useState(null);
 
   const isParafrase = activeService && (activeService.slug === 'parafrase' || activeService.id === 'parafrase');
   const isDrillbit = activeService && (activeService.slug === 'cek-drillbit' || activeService.id === 'cek-drillbit');
@@ -69,6 +72,9 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
 
       if (!res.ok) throw new Error(data.error || 'Gagal memproses order');
 
+      setCreatedOrder(data.order);
+
+      // Trigger Midtrans Snap payment popup using the dedicated transaction Snap token
       if (window.snap && data.snapToken && !data.snapToken.includes('SNAP-SIMULATED')) {
         window.snap.pay(data.snapToken, {
           onSuccess: function (result) { onOrderSuccess(data.order); },
@@ -203,7 +209,7 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
                     value={whatsapp}
                     onChange={(e) => setWhatsapp(e.target.value)}
                   />
-                  <small className="text-muted">Hasil cek & notifikasi bayar dikirim ke WA ini</small>
+                  <small className="text-muted">Hasil cek & link download dikirim otomatis ke WA ini</small>
                 </div>
                 <div className="col-md-6">
                   <label className="form-label fw-semibold small text-secondary">ALAMAT EMAIL (Opsional)</label>
@@ -271,6 +277,42 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
           </div>
         </div>
       </div>
+
+      {/* MODAL NOTIFIKASI SUKSES PROSES PESANAN */}
+      {createdOrder && (
+        <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content border-0 rounded-4 shadow-lg p-4 text-center">
+              <div className="icon-mint-box mx-auto mb-3" style={{ width: '64px', height: '64px' }}>
+                <i className="ri-checkbox-circle-fill fs-1 text-mint-primary"></i>
+              </div>
+
+              <h4 className="fw-bold text-mint-heading mb-2">Pesanan Berhasil Dikirim!</h4>
+              <p className="text-secondary small mb-3">
+                Dokumen <b>{createdOrder.fileName}</b> telah sukses diterima sistem Laksamana dengan Kode Order: <b className="text-mint-primary">{createdOrder.id}</b>
+              </p>
+
+              <div className="alert bg-mint-light border border-success border-opacity-25 rounded-3 text-start small p-3 mb-4">
+                <div className="fw-bold text-mint-heading mb-1 d-flex align-items-center gap-1">
+                  <i className="ri-whatsapp-line text-success fs-5"></i> Pengiriman Hasil ke WhatsApp
+                </div>
+                <div className="text-secondary">
+                  Dokumen Anda sedang diproses oleh sistem. Setelah pemeriksaan selesai, <b>link download resmi dan file laporan</b> akan dikirimkan otomatis ke WhatsApp Anda (<b>{createdOrder.whatsapp}</b>).
+                </div>
+              </div>
+
+              <div className="d-flex gap-2">
+                <button 
+                  onClick={() => onOrderSuccess(createdOrder)} 
+                  className="btn btn-mint-primary w-100 rounded-pill py-2.5 fw-bold"
+                >
+                  Lacak Pesanan Saya <i className="ri-search-line me-1"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

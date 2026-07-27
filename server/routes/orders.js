@@ -50,6 +50,8 @@ router.post('/create', cpUpload, async (req, res) => {
   }
 
   const orderId = `LKS-${Math.floor(100000 + Math.random() * 900000)}`;
+  const transactionId = `TRX-${Math.floor(100000 + Math.random() * 900000)}-${Date.now().toString().slice(-4)}`;
+
   const fileName = mainFile ? mainFile.originalname : 'Dokumen_Upload.pdf';
   const filePath = mainFile ? `/uploads/${mainFile.filename}` : '';
   const plagiarismReportPath = reportFile ? `/uploads/${reportFile.filename}` : '';
@@ -61,39 +63,19 @@ router.post('/create', cpUpload, async (req, res) => {
   let reportDownloadUrl = `/api/orders/download/${orderId}`;
 
   let analysisResult = {
-    similarityIndex: 12,
-    aiScore: 3,
+    similarityIndex: 0,
+    aiScore: 0,
     pageCount: Math.max(1, Math.ceil(fileSize / 15000)),
     wordCount: calculatedWordCount,
-    matchedSources: [
-      { source: "journal.univexample.ac.id/index.php/article/view/1092", percent: 5 },
-      { source: "repository.researchgate.net/publication/34821", percent: 4 }
-    ]
+    matchedSources: []
   };
 
-  if (targetSlug === 'cek-plagiasi') {
-    const trnRes = await runTurnitinWorker(filePath, fileName, orderId);
-    analysisResult.similarityIndex = trnRes.similarityIndex;
-    analysisResult.aiScore = trnRes.aiScore;
-  } else if (targetSlug === 'cek-drillbit') {
-    const dblRes = await runDrillbitEngine(filePath, fileName, fileSize, orderId);
-    analysisResult.similarityIndex = dblRes.similarityIndex;
-    analysisResult.wordCount = dblRes.wordCount;
-    calculatedAmount = dblRes.calculatedTotalAmount;
-    if (dblRes.reportDownloadUrl) {
-      reportDownloadUrl = dblRes.reportDownloadUrl;
-    }
-  } else if (targetSlug === 'gptzero') {
-    const gptRes = await runGPTZeroEngine(filePath, fileName, orderId);
-    analysisResult.aiScore = gptRes.aiScore;
-  } else if (targetSlug === 'humanizer') {
-    const humRes = await runHumanizerEngine(filePath, fileName, orderId, 'humanizer');
-    analysisResult.similarityIndex = humRes.similarityIndex;
-    analysisResult.aiScore = humRes.aiScore;
+  if (targetSlug === 'cek-drillbit') {
+    calculatedAmount = calculatedWordCount * 10;
   }
 
   analysisResult.reportDownloadUrl = reportDownloadUrl;
-  const initialStatus = targetSlug === 'parafrase' ? 'PROCESSING' : 'PENDING_PAYMENT';
+  const initialStatus = 'PROCESSING';
 
   const newOrder = {
     id: orderId,
@@ -114,11 +96,12 @@ router.post('/create', cpUpload, async (req, res) => {
   };
 
   try {
-    const midtransRes = await createMidtransTransaction(newOrder);
+    const midtransRes = await createMidtransTransaction(newOrder, transactionId);
     newOrder.snapToken = midtransRes.snapToken;
     newOrder.snapRedirectUrl = midtransRes.redirectUrl;
 
     const db = getPool();
+    // 1. Insert Into orders Table
     await db.query(`
       INSERT INTO orders (id, service_slug, service_name, file_name, file_path, plagiarism_report_path, file_size, whatsapp, email, payment_method, amount, status, similarity_index, ai_score, page_count, word_count, matched_sources, report_download_url)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -143,28 +126,62 @@ router.post('/create', cpUpload, async (req, res) => {
       reportDownloadUrl
     ]);
 
-    // Send WA notification
-    const waText = getOrderCreatedWATemplate(newOrder);
+    // 2. Insert Dedicated Unique Transaction Record Into transactions Table
+    await db.query(`
+      INSERT INTO transactions (id, order_id, amount, payment_type, snap_token, snap_redirect_url, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, [
+      transactionId,
+      newOrder.id,
+      newOrder.amount,
+      paymentMethod || 'gopay_qris',
+      newOrder.snapToken,
+      newOrder.snapRedirectUrl,
+      'PENDING'
+    ]);
+
+    // Send WA notification that order was received & is being processed
+    const waText = `📄 *PESANAN DITERIMA - LAKSAMANA.ID*\n\nHalo, dokumen *${fileName}* telah diterima dengan Kode Order: *${orderId}*.\n\n⏳ *Status:* Dokumen Anda sedang diproses oleh sistem ${newOrder.serviceName}.\n\nSilakan tunggu, hasil skor & file laporan resmi akan dikirimkan otomatis ke WhatsApp ini setelah selesai!`;
     sendWhatsAppMessage(newOrder.whatsapp, waText);
 
-    // Auto-complete non-manual services & update completed_at timestamp
-    if (targetSlug !== 'parafrase') {
-      setTimeout(async () => {
-        await db.query('UPDATE orders SET status = "COMPLETED", completed_at = CURRENT_TIMESTAMP WHERE id = ?', [orderId]);
-        const fullDownloadUrl = `http://localhost:5000${reportDownloadUrl}`;
-        
-        let reportWaText = getReportCompletedWATemplate(newOrder, fullDownloadUrl);
+    // Asynchronously trigger automated Drillbit or Turnitin Puppeteer worker to upload the file
+    setTimeout(async () => {
+      try {
         if (targetSlug === 'cek-drillbit') {
-          reportWaText = `📊 *HASIL CEK DRILLBIT LAKSAMANA SELESAI* 🎉\n\nHalo, pemeriksaan plagiasi Drillbit untuk dokumen *${newOrder.fileName}* telah selesai dikerjakan secara otomatis!\n\n📋 *Ringkasan Drillbit Per-Kata:*\n• Kode Order : *${newOrder.id}*\n• Total Kata : *${analysisResult.wordCount.toLocaleString('id-ID')} kata*\n• Similarity Index : *${analysisResult.similarityIndex}%*\n\n📄 *File laporan resmi Drillbit telah dilampirkan langsung pada pesan WhatsApp ini!*`;
-        }
+          console.log(`🚀 [BACKGROUND WORKER] Triggering automated Drillbit upload for ${orderId}...`);
+          const dblRes = await runDrillbitEngine(filePath, fileName, fileSize, orderId);
+          
+          await db.query(`
+            UPDATE orders 
+            SET status = 'COMPLETED', similarity_index = ?, word_count = ?, report_download_url = ?, completed_at = CURRENT_TIMESTAMP 
+            WHERE id = ?
+          `, [dblRes.similarityIndex, dblRes.wordCount, dblRes.reportDownloadUrl, orderId]);
 
-        sendWhatsAppMessage(newOrder.whatsapp, reportWaText, fullDownloadUrl);
-      }, 4000);
-    }
+          const fullDownloadUrl = `http://localhost:5000${dblRes.reportDownloadUrl}`;
+          const reportWaText = `📊 *HASIL CEK DRILLBIT LAKSAMANA SELESAI* 🎉\n\nHalo, pemeriksaan plagiasi Drillbit untuk dokumen *${fileName}* telah selesai dikerjakan!\n\n📋 *Ringkasan Drillbit Per-Kata:*\n• Kode Order : *${orderId}*\n• Total Kata : *${dblRes.wordCount.toLocaleString('id-ID')} kata*\n• Similarity Index : *${dblRes.similarityIndex}%*\n\n📄 *File laporan resmi Drillbit telah dilampirkan langsung pada pesan WhatsApp ini!*`;
+          sendWhatsAppMessage(whatsapp, reportWaText, fullDownloadUrl);
+        } else if (targetSlug === 'cek-plagiasi') {
+          console.log(`🚀 [BACKGROUND WORKER] Triggering automated Turnitin check for ${orderId}...`);
+          const trnRes = await runTurnitinWorker(filePath, fileName, orderId);
+
+          await db.query(`
+            UPDATE orders 
+            SET status = 'COMPLETED', similarity_index = ?, ai_score = ?, completed_at = CURRENT_TIMESTAMP 
+            WHERE id = ?
+          `, [trnRes.similarityIndex, trnRes.aiScore, orderId]);
+
+          const fullDownloadUrl = `http://localhost:5000${reportDownloadUrl}`;
+          sendWhatsAppMessage(whatsapp, getReportCompletedWATemplate(newOrder, fullDownloadUrl), fullDownloadUrl);
+        }
+      } catch (workerErr) {
+        console.error(`❌ [BACKGROUND WORKER ERROR] Order ${orderId}:`, workerErr.message);
+      }
+    }, 2000);
 
     res.status(201).json({
       message: 'Pesanan Laksamana berhasil disimpan di MySQL Database',
       orderId: newOrder.id,
+      transactionId: transactionId,
       snapToken: newOrder.snapToken,
       snapRedirectUrl: newOrder.snapRedirectUrl,
       order: newOrder
@@ -179,20 +196,43 @@ router.post('/midtrans-webhook', async (req, res) => {
   const { order_id, transaction_status, fraud_status } = req.body;
   const db = getPool();
   
-  const baseOrderId = order_id ? order_id.split('-').slice(0, 2).join('-') : order_id;
-  const [rows] = await db.query('SELECT * FROM orders WHERE id = ? OR id = ?', [order_id, baseOrderId]);
+  const [trxRows] = await db.query('SELECT * FROM transactions WHERE id = ?', [order_id]);
+  let targetOrderId = order_id;
+  
+  if (trxRows.length > 0) {
+    targetOrderId = trxRows[0].order_id;
+    await db.query('UPDATE transactions SET status = ? WHERE id = ?', [transaction_status, order_id]);
+  }
+
+  const [rows] = await db.query('SELECT * FROM orders WHERE id = ?', [targetOrderId]);
   if (rows.length === 0) return res.status(404).json({ error: 'Order not found' });
   
   const order = rows[0];
 
   if (transaction_status === 'capture' || transaction_status === 'settlement') {
     if (fraud_status === 'accept' || !fraud_status) {
-      const nextStatus = order.service_slug === 'parafrase' ? 'PROCESSING' : 'COMPLETED';
-      await db.query('UPDATE orders SET status = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ?', [nextStatus, order.id]);
-      
-      const fullDownloadUrl = `http://localhost:5000${order.report_download_url}`;
-      sendWhatsAppMessage(order.whatsapp, getPaymentSuccessWATemplate(order));
-      sendWhatsAppMessage(order.whatsapp, getReportCompletedWATemplate(order, fullDownloadUrl), fullDownloadUrl);
+      if (order.service_slug === 'cek-drillbit') {
+        const dblRes = await runDrillbitEngine(order.file_path, order.file_name, order.file_size, order.id);
+        await db.query(`
+          UPDATE orders 
+          SET status = 'COMPLETED', similarity_index = ?, word_count = ?, report_download_url = ?, completed_at = CURRENT_TIMESTAMP 
+          WHERE id = ?
+        `, [dblRes.similarityIndex, dblRes.wordCount, dblRes.reportDownloadUrl, order.id]);
+        
+        const fullDownloadUrl = `http://localhost:5000${dblRes.reportDownloadUrl}`;
+        const reportWaText = `📊 *HASIL CEK DRILLBIT LAKSAMANA SELESAI* 🎉\n\nHalo, pemeriksaan plagiasi Drillbit untuk dokumen *${order.file_name}* telah selesai dikerjakan!\n\n📋 *Ringkasan Drillbit Per-Kata:*\n• Kode Order : *${order.id}*\n• Total Kata : *${dblRes.wordCount.toLocaleString('id-ID')} kata*\n• Similarity Index : *${dblRes.similarityIndex}%*\n\n📄 *File laporan resmi Drillbit telah dilampirkan langsung pada pesan WhatsApp ini!*`;
+        sendWhatsAppMessage(order.whatsapp, reportWaText, fullDownloadUrl);
+      } else if (order.service_slug === 'cek-plagiasi') {
+        const trnRes = await runTurnitinWorker(order.file_path, order.file_name, order.id);
+        await db.query(`
+          UPDATE orders 
+          SET status = 'COMPLETED', similarity_index = ?, ai_score = ?, completed_at = CURRENT_TIMESTAMP 
+          WHERE id = ?
+        `, [trnRes.similarityIndex, trnRes.aiScore, order.id]);
+
+        const fullDownloadUrl = `http://localhost:5000${order.report_download_url}`;
+        sendWhatsAppMessage(order.whatsapp, getReportCompletedWATemplate(order, fullDownloadUrl), fullDownloadUrl);
+      }
     }
   } else if (transaction_status === 'cancel' || transaction_status === 'deny' || transaction_status === 'expire') {
     await db.query('UPDATE orders SET status = "FAILED" WHERE id = ?', [order.id]);
@@ -207,9 +247,12 @@ router.get('/track/:id', async (req, res) => {
   const db = getPool();
 
   try {
+    const cleanPhone = query.replace(/\D/g, '');
+    const phonePattern = cleanPhone.length > 5 ? `%${cleanPhone.slice(-8)}%` : query;
+
     const [rows] = await db.query(
-      'SELECT * FROM orders WHERE id = ? OR whatsapp = ? ORDER BY created_at DESC',
-      [query, query]
+      'SELECT * FROM orders WHERE id = ? OR whatsapp = ? OR whatsapp LIKE ? ORDER BY created_at DESC',
+      [query, query, phonePattern]
     );
 
     if (rows.length === 0) return res.status(404).json({ error: 'Pesanan Laksamana tidak ditemukan.' });
@@ -263,7 +306,7 @@ Nama File       : ${order.file_name}
 Layanan         : ${order.service_name}
 Status Bayar    : ${order.status} (Midtrans Verified)
 Tanggal Cek     : ${new Date(order.created_at).toLocaleString('id-ID')}
-Waktu Kirim WA  : ${order.completed_at ? new Date(order.completed_at).toLocaleString('id-ID') : 'Selesai'}
+Waktu Kirim WA  : ${order.completed_at ? new Date(order.completed_at).toLocaleString('id-ID') : 'Sedang Diproses'}
 -----------------------------------------------------------
 SKOR HASIL ANALISIS LAKSAMANA:
 - Similarity Index   : ${order.similarity_index}%

@@ -33,13 +33,18 @@ router.post('/register', async (req, res) => {
       [userId, name, email, hashedPassword, whatsapp || '', 'user', 1, 1, verificationCode]
     );
 
+    // Auto-associate previous guest orders matching this WhatsApp number to the new user email
+    if (whatsapp) {
+      await db.query('UPDATE orders SET email = ? WHERE whatsapp = ? OR whatsapp LIKE ?', [email, whatsapp, `%${whatsapp.slice(-8)}%`]);
+    }
+
     // Send Admin WA Notification
     const adminNotificationMessage = `📢 *PENDAFTARAN AKUN BARU LAKSAMANA*\n\nPengguna baru telah mendaftar & otomatis teraktivasi:\n\n• Nama      : *${name}*\n• Email     : ${email}\n• WhatsApp  : ${whatsapp || 'Tidak Diisi'}\n• Status    : ✅ AKTIF OTOMATIS\n\n🌐 *Buka Beranda/Admin Laksamana:*\n${CLIENT_URL}`;
     await sendWhatsAppMessage(ADMIN_WA_NUMBER, adminNotificationMessage);
 
     // Send Welcome WA Notification
     if (whatsapp) {
-      const userWelcomeMessage = `🎉 *SELAMAT DATANG DI LAKSAMANA.ID!*\n\nHalo *${name}*,\n\nAkun Laksamana Anda (*${email}*) telah sukses teraktivasi!\n\nKlik tautan di bawah ini untuk langsung kembali ke Beranda & mulai cek dokumen:\n🌐 ${CLIENT_URL}\n\nTerima kasih dan selamat menggunakan layanan Laksamana.id!`;
+      const userWelcomeMessage = `🎉 *SELAMAT DATANG DI LAKSAMANA.ID!*\n\nHalo *${name}*,\n\nAkun Laksamana Anda (*${email}*) telah sukses teraktivasi!\n\nSeluruh riwayat pesanan yang dibuat dengan nomor WhatsApp ini telah otomatis terhubung ke akun Anda.\n\nKlik tautan di bawah ini untuk langsung kembali ke Beranda & mulai cek dokumen:\n🌐 ${CLIENT_URL}\n\nTerima kasih dan selamat menggunakan layanan Laksamana.id!`;
       await sendWhatsAppMessage(whatsapp, userWelcomeMessage);
     }
 

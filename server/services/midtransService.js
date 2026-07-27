@@ -11,22 +11,15 @@ const snap = new midtransClient.Snap({
   clientKey: clientKey
 });
 
-const coreApi = new midtransClient.CoreApi({
-  isProduction: isProduction,
-  serverKey: serverKey,
-  clientKey: clientKey
-});
-
 /**
- * Creates Midtrans Transaction with unique sub-order ID to prevent Midtrans 'ongoing payment' duplicate errors.
+ * Creates Midtrans Transaction using dedicated unique transaction_id (e.g. TRX-849201-17849)
+ * guarantees Midtrans receives a unique order_id on every single payment attempt.
  */
-async function createMidtransTransaction(order) {
-  // Append timestamp to ensure Midtrans receives a unique order_id on every retry
-  const midtransOrderId = `${order.id}-${Date.now()}`;
-  console.log(`💳 [MIDTRANS SERVICE] Creating transaction for Midtrans Order ID: ${midtransOrderId} (Base: ${order.id})`);
+async function createMidtransTransaction(order, transactionId) {
+  const midtransOrderId = transactionId || `TRX-${Math.floor(100000 + Math.random() * 900000)}-${Date.now().toString().slice(-4)}`;
+  console.log(`💳 [MIDTRANS SERVICE] Initializing Snap Transaction for Transaction ID: ${midtransOrderId} (Order ID: ${order.id})`);
 
   const parameter = {
-    payment_type: 'gopay',
     transaction_details: {
       order_id: midtransOrderId,
       gross_amount: order.amount || 10000
@@ -44,7 +37,8 @@ async function createMidtransTransaction(order) {
         quantity: 1,
         name: (order.serviceName || 'Cek Plagiasi No-Repository').substring(0, 50)
       }
-    ]
+    ],
+    enabled_payments: ['gopay', 'qris', 'bank_transfer', 'shopeepay']
   };
 
   let rawQrString = `00020101021226580016ID.CO.TELKOM.WWW01189360091100215949434802150000000000000000303UMI51440014ID.LINKAJA.WWW011893600911002159494348021500000000000000005204581253033605405${order.amount || 10000}5802ID5912Laksamana.id6007JAKARTA6304A1B2`;
@@ -62,29 +56,7 @@ async function createMidtransTransaction(order) {
   }
 
   try {
-    // 1. Create Core API charge to extract direct QR Code Image URL
-    try {
-      const chargeRes = await coreApi.charge(parameter);
-      if (chargeRes.actions && Array.isArray(chargeRes.actions)) {
-        const qrAction = chargeRes.actions.find(a => a.name === 'generate-qr-code');
-        if (qrAction && qrAction.url) {
-          qrImageUrl = qrAction.url;
-        }
-      }
-      if (chargeRes.qr_string) {
-        rawQrString = chargeRes.qr_string;
-      }
-    } catch (e) {
-      console.log(`ℹ️ [MIDTRANS CORE API INFO] Fallback to Snap Transaction...`);
-    }
-
-    // 2. Create Snap Transaction Token
-    const snapRes = await snap.createTransaction({
-      transaction_details: parameter.transaction_details,
-      customer_details: parameter.customer_details,
-      item_details: parameter.item_details,
-      enabled_payments: ['gopay', 'qris', 'bank_transfer', 'shopeepay']
-    });
+    const snapRes = await snap.createTransaction(parameter);
 
     return {
       midtransOrderId,
