@@ -31,8 +31,11 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
   const [serviceSlug, setServiceSlug] = useState('');
   const [serviceTitle, setServiceTitle] = useState('');
   const [serviceSubtitle, setServiceSubtitle] = useState('');
+  const [serviceIcon, setServiceIcon] = useState('ri-file-line');
   const [servicePrice, setServicePrice] = useState('10000');
   const [serviceUnit, setServiceUnit] = useState('file');
+  const [serviceMaxPages, setServiceMaxPages] = useState('800');
+  const [serviceDescription, setServiceDescription] = useState('');
   const [serviceActive, setServiceActive] = useState(true);
 
   // Package Edit / Create form state
@@ -120,19 +123,25 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
   const handleOpenServiceModal = (svc = null) => {
     if (svc) {
       setServiceModal(svc);
-      setServiceSlug(svc.slug);
-      setServiceTitle(svc.title);
+      setServiceSlug(svc.slug || '');
+      setServiceTitle(svc.title || '');
       setServiceSubtitle(svc.subtitle || '');
-      setServicePrice(svc.price);
+      setServiceIcon(svc.icon || 'ri-file-line');
+      setServicePrice(String(svc.price || 10000));
       setServiceUnit(svc.unit || 'file');
+      setServiceMaxPages(String(svc.max_pages || 800));
+      setServiceDescription(svc.description || '');
       setServiceActive(Boolean(svc.active));
     } else {
       setServiceModal({ isNew: true });
       setServiceSlug('');
       setServiceTitle('');
       setServiceSubtitle('');
+      setServiceIcon('ri-file-line');
       setServicePrice('10000');
       setServiceUnit('file');
+      setServiceMaxPages('800');
+      setServiceDescription('');
       setServiceActive(true);
     }
   };
@@ -151,8 +160,11 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
           slug: serviceSlug,
           title: serviceTitle,
           subtitle: serviceSubtitle,
-          price: servicePrice,
+          icon: serviceIcon,
+          price: parseInt(servicePrice) || 10000,
           unit: serviceUnit,
+          maxPages: parseInt(serviceMaxPages) || 800,
+          description: serviceDescription,
           active: serviceActive
         })
       });
@@ -185,9 +197,9 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
   const handleOpenPackageModal = (pkg = null) => {
     if (pkg) {
       setPackageModal(pkg);
-      setPackageName(pkg.name);
-      setPackagePrice(pkg.price);
-      setPackageQuota(pkg.quota);
+      setPackageName(pkg.name || '');
+      setPackagePrice(String(pkg.price || 27500));
+      setPackageQuota(String(pkg.quota || 3));
       setPackageValidity(pkg.validity || '7 hari');
       setPackageActive(Boolean(pkg.active));
     } else {
@@ -212,8 +224,8 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: packageName,
-          price: packagePrice,
-          quota: packageQuota,
+          price: parseInt(packagePrice) || 27500,
+          quota: parseInt(packageQuota) || 3,
           validity: packageValidity,
           active: packageActive
         })

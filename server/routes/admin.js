@@ -120,17 +120,19 @@ router.get('/services', async (req, res) => {
 
 router.post('/services', async (req, res) => {
   const { slug, title, subtitle, icon, price, unit, maxPages, description, active } = req.body;
-  if (!slug || !title || !price) {
-    return res.status(400).json({ error: 'Slug, Judul, dan Harga Wajib Diisi.' });
+  if (!slug || !title) {
+    return res.status(400).json({ error: 'Slug dan Judul Wajib Diisi.' });
   }
 
   const serviceId = slug.toLowerCase().trim();
+  const safePrice = parseInt(price) || 10000;
+  const safeMaxPages = parseInt(maxPages) || 800;
   try {
     const db = getPool();
     await db.query(`
       INSERT INTO services (id, slug, title, subtitle, icon, price, unit, max_pages, description, active)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [serviceId, serviceId, title, subtitle || '', icon || 'ri-file-line', parseInt(price), unit || 'file', parseInt(maxPages) || 800, description || '', active ? 1 : 0]);
+    `, [serviceId, serviceId, title, subtitle || '', icon || 'ri-file-line', safePrice, unit || 'file', safeMaxPages, description || '', active ? 1 : 0]);
 
     res.status(201).json({ message: `Layanan ${title} berhasil ditambahkan!`, serviceId });
   } catch (err) {
@@ -142,13 +144,15 @@ router.put('/services/:id', async (req, res) => {
   const { id } = req.params;
   const { title, subtitle, icon, price, unit, maxPages, description, active } = req.body;
 
+  const safePrice = parseInt(price) || 10000;
+  const safeMaxPages = parseInt(maxPages) || 800;
   try {
     const db = getPool();
     await db.query(`
       UPDATE services 
       SET title = ?, subtitle = ?, icon = ?, price = ?, unit = ?, max_pages = ?, description = ?, active = ?
       WHERE id = ?
-    `, [title, subtitle, icon, parseInt(price), unit, parseInt(maxPages), description, active ? 1 : 0, id]);
+    `, [title || '', subtitle || '', icon || 'ri-file-line', safePrice, unit || 'file', safeMaxPages, description || '', active ? 1 : 0, id]);
 
     res.json({ message: `Layanan ${title} berhasil diperbarui!` });
   } catch (err) {
@@ -192,7 +196,7 @@ router.post('/packages', async (req, res) => {
     await db.query(`
       INSERT INTO packages (id, name, validity, price, target_audience, quota, benefits, active)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [pkgId, name, validity || '7 hari', parseInt(price), targetAudience || '', parseInt(quota) || 3, benefitsJson, active ? 1 : 0]);
+    `, [pkgId, name, validity || '7 hari', parseInt(price) || 27500, targetAudience || '', parseInt(quota) || 3, benefitsJson, active ? 1 : 0]);
 
     res.status(201).json({ message: `Paket ${name} berhasil ditambahkan!`, pkgId });
   } catch (err) {
@@ -212,7 +216,7 @@ router.put('/packages/:id', async (req, res) => {
       UPDATE packages 
       SET name = ?, validity = ?, price = ?, target_audience = ?, quota = ?, benefits = ?, active = ?
       WHERE id = ?
-    `, [name, validity, parseInt(price), targetAudience, parseInt(quota), benefitsJson, active ? 1 : 0, id]);
+    `, [name || '', validity || '7 hari', parseInt(price) || 27500, targetAudience || '', parseInt(quota) || 3, benefitsJson, active ? 1 : 0, id]);
 
     res.json({ message: `Paket ${name} berhasil diperbarui!` });
   } catch (err) {
