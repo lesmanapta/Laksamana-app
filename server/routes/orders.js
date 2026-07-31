@@ -245,7 +245,7 @@ router.post('/create', cpUpload, async (req, res) => {
   }
 
   analysisResult.reportDownloadUrl = reportDownloadUrl;
-  const initialStatus = 'PROCESSING';
+  const initialStatus = usedTokenCode ? 'PROCESSING' : 'PENDING_PAYMENT';
 
   const newOrder = {
     id: orderId,
@@ -312,43 +312,47 @@ router.post('/create', cpUpload, async (req, res) => {
       usedTokenCode ? 'SETTLEMENT' : 'PENDING'
     ]);
 
-    // Send WA notification that order was received & is being processed
-    const waText = `📄 *PESANAN DITERIMA - LAKSAMANA.ID*\n\nHalo, dokumen *${fileName}* telah diterima dengan Kode Order: *${orderId}*.\n• Filter Turnitin: *Quotes (${parsedFilters.excludeQuotes ? 'OFF' : 'ON'}), Biblio (${parsedFilters.excludeBibliography ? 'OFF' : 'ON'})*\n• Pembayaran: *${newOrder.paymentMethod}*\n• Tarif: *Rp ${newOrder.amount.toLocaleString('id-ID')}*\n\n⏳ *Status:* Dokumen Anda sedang diproses oleh sistem ${newOrder.serviceName}.\n\nSilakan tunggu, hasil skor & file laporan resmi akan dikirimkan otomatis ke WhatsApp ini setelah selesai!`;
+    // Send WA notification that order was received
+    const waText = usedTokenCode
+      ? `📄 *PESANAN DITERIMA - LAKSAMANA.ID*\n\nHalo, dokumen *${fileName}* telah diterima (Token Paket: \`${usedTokenCode}\`) dengan Kode Order: *${orderId}*.\n• Status: ⏳ SEDANG DIPROSES\n\nHasil skor & file laporan resmi akan dikirimkan otomatis ke WhatsApp ini setelah selesai!`
+      : `📄 *PESANAN DITERIMA - LAKSAMANA.ID*\n\nHalo, dokumen *${fileName}* telah diterima dengan Kode Order: *${orderId}*.\n• Tarif: *Rp ${newOrder.amount.toLocaleString('id-ID')}*\n• Status: 💳 MENUNGGU PEMBAYARAN\n\nSilakan selesaikan pembayaran untuk memproses dokumen Anda.`;
     sendWhatsAppMessage(newOrder.whatsapp, waText);
 
-    // Asynchronously trigger automated Drillbit or Turnitin Puppeteer worker to upload the file
-    setTimeout(async () => {
-      try {
-        if (targetSlug === 'cek-drillbit') {
-          console.log(`🚀 [BACKGROUND WORKER] Triggering automated Drillbit upload for ${orderId}...`);
-          const dblRes = await runDrillbitEngine(filePath, fileName, fileSize, orderId);
-          
-          await db.query(`
-            UPDATE orders 
-            SET status = 'COMPLETED', similarity_index = ?, word_count = ?, report_download_url = ?, completed_at = CURRENT_TIMESTAMP 
-            WHERE id = ?
-          `, [dblRes.similarityIndex, dblRes.wordCount, dblRes.reportDownloadUrl, orderId]);
+    // Asynchronously trigger automated Drillbit or Turnitin Puppeteer worker ONLY IF TOKEN WAS USED
+    if (usedTokenCode) {
+      setTimeout(async () => {
+        try {
+          if (targetSlug === 'cek-drillbit') {
+            console.log(`🚀 [BACKGROUND WORKER] Triggering automated Drillbit upload for ${orderId}...`);
+            const dblRes = await runDrillbitEngine(filePath, fileName, fileSize, orderId);
+            
+            await db.query(`
+              UPDATE orders 
+              SET status = 'COMPLETED', similarity_index = ?, word_count = ?, report_download_url = ?, completed_at = CURRENT_TIMESTAMP 
+              WHERE id = ?
+            `, [dblRes.similarityIndex, dblRes.wordCount, dblRes.reportDownloadUrl, orderId]);
 
-          const fullDownloadUrl = `http://localhost:5000${dblRes.reportDownloadUrl}`;
-          const reportWaText = `📊 *HASIL CEK DRILLBIT LAKSAMANA SELESAI* 🎉\n\nHalo, pemeriksaan plagiasi Drillbit untuk dokumen *${fileName}* telah selesai dikerjakan!\n\n📋 *Ringkasan Drillbit Per-Kata:*\n• Kode Order : *${orderId}*\n• Total Kata : *${dblRes.wordCount.toLocaleString('id-ID')} kata*\n• Similarity Index : *${dblRes.similarityIndex}%*\n\n📄 *File laporan resmi Drillbit telah dilampirkan langsung pada pesan WhatsApp ini!*`;
-          sendWhatsAppMessage(whatsapp, reportWaText, fullDownloadUrl);
-        } else if (targetSlug === 'cek-plagiasi') {
-          console.log(`🚀 [BACKGROUND WORKER] Triggering automated Turnitin check for ${orderId}...`);
-          const trnRes = await runTurnitinWorker(filePath, fileName, orderId, parsedFilters);
+            const fullDownloadUrl = `http://localhost:5000${dblRes.reportDownloadUrl}`;
+            const reportWaText = `📊 *HASIL CEK DRILLBIT LAKSAMANA SELESAI* 🎉\n\nHalo, pemeriksaan plagiasi Drillbit untuk dokumen *${fileName}* telah selesai dikerjakan!\n\n📋 *Ringkasan Drillbit Per-Kata:*\n• Kode Order : *${orderId}*\n• Total Kata : *${dblRes.wordCount.toLocaleString('id-ID')} kata*\n• Similarity Index : *${dblRes.similarityIndex}%*\n\n📄 *File laporan resmi Drillbit telah dilampirkan langsung pada pesan WhatsApp ini!*`;
+            sendWhatsAppMessage(whatsapp, reportWaText, fullDownloadUrl);
+          } else if (targetSlug === 'cek-plagiasi') {
+            console.log(`🚀 [BACKGROUND WORKER] Triggering automated Turnitin check for ${orderId}...`);
+            const trnRes = await runTurnitinWorker(filePath, fileName, orderId, parsedFilters);
 
-          await db.query(`
-            UPDATE orders 
-            SET status = 'COMPLETED', similarity_index = ?, ai_score = ?, completed_at = CURRENT_TIMESTAMP 
-            WHERE id = ?
-          `, [trnRes.similarityIndex, trnRes.aiScore, orderId]);
+            await db.query(`
+              UPDATE orders 
+              SET status = 'COMPLETED', similarity_index = ?, ai_score = ?, completed_at = CURRENT_TIMESTAMP 
+              WHERE id = ?
+            `, [trnRes.similarityIndex, trnRes.aiScore, orderId]);
 
-          const fullDownloadUrl = `http://localhost:5000${reportDownloadUrl}`;
-          sendWhatsAppMessage(whatsapp, getReportCompletedWATemplate(newOrder, fullDownloadUrl), fullDownloadUrl);
+            const fullDownloadUrl = `http://localhost:5000${reportDownloadUrl}`;
+            sendWhatsAppMessage(whatsapp, getReportCompletedWATemplate(newOrder, fullDownloadUrl), fullDownloadUrl);
+          }
+        } catch (workerErr) {
+          console.error(`❌ [BACKGROUND WORKER ERROR] Order ${orderId}:`, workerErr.message);
         }
-      } catch (workerErr) {
-        console.error(`❌ [BACKGROUND WORKER ERROR] Order ${orderId}:`, workerErr.message);
-      }
-    }, 2000);
+      }, 2000);
+    }
 
     res.status(201).json({
       message: 'Pesanan Laksamana berhasil disimpan di MySQL Database',
@@ -360,6 +364,64 @@ router.post('/create', cpUpload, async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: 'Gagal membuat pesanan di MySQL: ' + err.message });
+  }
+});
+
+// POST /api/orders/confirm-payment - Trigger document check when payment is confirmed
+router.post('/confirm-payment', async (req, res) => {
+  const { orderId } = req.body;
+  if (!orderId) return res.status(400).json({ error: 'Order ID required.' });
+
+  try {
+    const db = getPool();
+    const [rows] = await db.query('SELECT * FROM orders WHERE id = ?', [orderId]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Pesanan tidak ditemukan.' });
+
+    const order = rows[0];
+    if (order.status === 'COMPLETED') {
+      return res.json({ message: 'Pesanan sudah selesai.', status: 'COMPLETED' });
+    }
+
+    // Update status to PROCESSING
+    await db.query('UPDATE orders SET status = "PROCESSING" WHERE id = ?', [orderId]);
+
+    const filterOpts = typeof order.filter_options === 'string' ? JSON.parse(order.filter_options) : (order.filter_options || {});
+
+    // Trigger background worker
+    setTimeout(async () => {
+      try {
+        if (order.service_slug === 'cek-drillbit') {
+          console.log(`🚀 [CONFIRM PAYMENT] Running Drillbit check for ${orderId}...`);
+          const dblRes = await runDrillbitEngine(order.file_path, order.file_name, order.file_size, order.id);
+          await db.query(`
+            UPDATE orders 
+            SET status = 'COMPLETED', similarity_index = ?, word_count = ?, report_download_url = ?, completed_at = CURRENT_TIMESTAMP 
+            WHERE id = ?
+          `, [dblRes.similarityIndex, dblRes.wordCount, dblRes.reportDownloadUrl, order.id]);
+
+          const fullDownloadUrl = `http://localhost:5000${dblRes.reportDownloadUrl}`;
+          const reportWaText = `📊 *HASIL CEK DRILLBIT LAKSAMANA SELESAI* 🎉\n\nHalo, pemeriksaan plagiasi Drillbit untuk dokumen *${order.file_name}* telah selesai dikerjakan!\n\n📋 *Ringkasan Drillbit Per-Kata:*\n• Kode Order : *${order.id}*\n• Total Kata : *${dblRes.wordCount.toLocaleString('id-ID')} kata*\n• Similarity Index : *${dblRes.similarityIndex}%*\n\n📄 *File laporan resmi Drillbit telah dilampirkan langsung pada pesan WhatsApp ini!*`;
+          sendWhatsAppMessage(order.whatsapp, reportWaText, fullDownloadUrl);
+        } else {
+          console.log(`🚀 [CONFIRM PAYMENT] Running Turnitin check for ${orderId}...`);
+          const trnRes = await runTurnitinWorker(order.file_path, order.file_name, order.id, filterOpts);
+          await db.query(`
+            UPDATE orders 
+            SET status = 'COMPLETED', similarity_index = ?, ai_score = ?, completed_at = CURRENT_TIMESTAMP 
+            WHERE id = ?
+          `, [trnRes.similarityIndex, trnRes.aiScore, order.id]);
+
+          const fullDownloadUrl = `http://localhost:5000${order.report_download_url}`;
+          sendWhatsAppMessage(order.whatsapp, getReportCompletedWATemplate(order, fullDownloadUrl), fullDownloadUrl);
+        }
+      } catch (err) {
+        console.error(`❌ [CONFIRM PAYMENT ERROR] Order ${orderId}:`, err.message);
+      }
+    }, 1000);
+
+    res.json({ message: 'Pembayaran dikonfirmasi! Dokumen sedang diproses.', status: 'PROCESSING' });
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal mengonfirmasi pembayaran: ' + err.message });
   }
 });
 

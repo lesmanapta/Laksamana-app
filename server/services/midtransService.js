@@ -14,15 +14,20 @@ const snap = new midtransClient.Snap({
 /**
  * Creates Midtrans Transaction using dedicated unique transaction_id (e.g. TRX-849201-17849)
  * guarantees Midtrans receives a unique order_id on every single payment attempt.
+ * 
+ * THROWS an error if the Midtrans API call fails — caller must handle it.
  */
 async function createMidtransTransaction(order, transactionId) {
   const midtransOrderId = transactionId || `TRX-${Math.floor(100000 + Math.random() * 900000)}-${Date.now().toString().slice(-4)}`;
   console.log(`💳 [MIDTRANS SERVICE] Initializing Snap Transaction for Transaction ID: ${midtransOrderId} (Order ID: ${order.id})`);
+  console.log(`💳 [MIDTRANS SERVICE] Amount: ${order.amount}, Service: ${order.serviceName}, IsProduction: ${isProduction}`);
+
+  const safeAmount = Math.max(1, parseInt(order.amount) || 10000);
 
   const parameter = {
     transaction_details: {
       order_id: midtransOrderId,
-      gross_amount: order.amount || 10000
+      gross_amount: safeAmount
     },
     customer_details: {
       first_name: 'Pelanggan',
@@ -32,8 +37,8 @@ async function createMidtransTransaction(order, transactionId) {
     },
     item_details: [
       {
-        id: order.serviceSlug || 'cek-plagiasi',
-        price: order.amount || 10000,
+        id: (order.serviceSlug || 'cek-plagiasi').substring(0, 50),
+        price: safeAmount,
         quantity: 1,
         name: (order.serviceName || 'Cek Plagiasi No-Repository').substring(0, 50)
       }
@@ -41,39 +46,25 @@ async function createMidtransTransaction(order, transactionId) {
     enabled_payments: ['gopay', 'qris', 'bank_transfer', 'shopeepay']
   };
 
-  let rawQrString = `00020101021226580016ID.CO.TELKOM.WWW01189360091100215949434802150000000000000000303UMI51440014ID.LINKAJA.WWW011893600911002159494348021500000000000000005204581253033605405${order.amount || 10000}5802ID5912Laksamana.id6007JAKARTA6304A1B2`;
-  let qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(rawQrString)}&size=300&margin=1`;
-
   if (!serverKey || serverKey.includes('YOUR_SERVER_KEY')) {
-    console.log(`⚠️ [MIDTRANS NOTICE] Server key not configured. Using Simulated QRIS string...`);
-    return {
-      midtransOrderId,
-      snapToken: `SNAP-SIMULATED-${Date.now()}`,
-      redirectUrl: `http://localhost:3000/?simulatedOrder=${order.id}`,
-      qrString: rawQrString,
-      qrImageUrl: qrImageUrl
-    };
+    console.log(`⚠️ [MIDTRANS NOTICE] Server key not configured. Midtrans payment cannot be processed.`);
+    throw new Error('Midtrans server key belum dikonfigurasi. Hubungi admin.');
   }
 
   try {
     const snapRes = await snap.createTransaction(parameter);
+    console.log(`✅ [MIDTRANS SERVICE] Snap Token created successfully: ${snapRes.token.substring(0, 20)}...`);
 
     return {
       midtransOrderId,
       snapToken: snapRes.token,
-      redirectUrl: snapRes.redirect_url,
-      qrString: rawQrString,
-      qrImageUrl: qrImageUrl
+      redirectUrl: snapRes.redirect_url
     };
   } catch (error) {
-    console.error(`❌ [MIDTRANS ERROR] Failed creating transaction:`, error.message);
-    return {
-      midtransOrderId,
-      snapToken: `SNAP-FALLBACK-${Date.now()}`,
-      redirectUrl: `http://localhost:3000/?simulatedOrder=${order.id}`,
-      qrString: rawQrString,
-      qrImageUrl: qrImageUrl
-    };
+    console.error(`❌ [MIDTRANS ERROR] Failed creating transaction for ${midtransOrderId}:`, error.message);
+    console.error(`❌ [MIDTRANS ERROR] Parameters:`, JSON.stringify(parameter, null, 2));
+    // Throw the error so the caller can handle it properly
+    throw new Error(`Midtrans payment error: ${error.message}`);
   }
 }
 

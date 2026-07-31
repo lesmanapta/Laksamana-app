@@ -89,8 +89,16 @@ export default function TrackOrderPage({ initialOrderId }) {
                     </span>
                     <h5 className="fw-bold text-mint-heading mb-0">{ord.serviceName}</h5>
                   </div>
-                  <span className={`badge px-3 py-2 rounded-pill fs-6 ${isCompleted ? 'bg-success text-white' : 'bg-warning text-dark'}`}>
-                    {isCompleted ? '✅ SELESAI' : '⏳ SEDANG DIPROSES'}
+                  <span className={`badge px-3 py-2 rounded-pill fs-6 ${
+                    ord.status === 'COMPLETED' ? 'bg-success text-white' :
+                    ord.status === 'PENDING_PAYMENT' ? 'bg-danger text-white' :
+                    ord.status === 'FAILED' ? 'bg-dark text-white' :
+                    'bg-warning text-dark'
+                  }`}>
+                    {ord.status === 'COMPLETED' ? '✅ SELESAI' :
+                     ord.status === 'PENDING_PAYMENT' ? '💳 MENUNGGU PEMBAYARAN' :
+                     ord.status === 'FAILED' ? '❌ DIBATALKAN' :
+                     '⏳ SEDANG DIPROSES'}
                   </span>
                 </div>
 
@@ -108,7 +116,7 @@ export default function TrackOrderPage({ initialOrderId }) {
                       )}
                     </div>
 
-                    {isCompleted && ord.result ? (
+                    {ord.status === 'COMPLETED' && ord.result ? (
                       <div className="p-3 bg-white border border-success border-opacity-25 rounded-4 mb-3">
                         <h6 className="fw-bold text-mint-heading mb-3">📊 Hasil Skor Pemeriksaan Resmi:</h6>
                         <div className="row g-2 text-center">
@@ -126,6 +134,15 @@ export default function TrackOrderPage({ initialOrderId }) {
                           </div>
                         </div>
                       </div>
+                    ) : ord.status === 'PENDING_PAYMENT' ? (
+                      <div className="alert bg-danger bg-opacity-10 border border-danger p-3 rounded-4 mb-3">
+                        <div className="fw-bold text-danger mb-1 d-flex align-items-center gap-1">
+                          <i className="ri-error-warning-line fs-5"></i> Menunggu Pembayaran
+                        </div>
+                        <div className="small text-secondary">
+                          Pembayaran sebesar <b>Rp {(ord.amount || 10000).toLocaleString('id-ID')}</b> belum dikonfirmasi. Dokumen Anda baru akan diproses setelah pembayaran diselesaikan.
+                        </div>
+                      </div>
                     ) : (
                       <div className="alert bg-mint-light border border-warning border-opacity-50 p-3 rounded-4 mb-3">
                         <div className="fw-bold text-mint-heading mb-1 d-flex align-items-center gap-1">
@@ -138,7 +155,7 @@ export default function TrackOrderPage({ initialOrderId }) {
                       </div>
                     )}
 
-                    {isCompleted ? (
+                    {ord.status === 'COMPLETED' ? (
                       <a 
                         href={`http://localhost:5000/api/orders/download/${ord.id}`} 
                         className="btn btn-mint-primary w-100 rounded-pill py-2.5 fw-bold shadow-sm"
@@ -147,6 +164,10 @@ export default function TrackOrderPage({ initialOrderId }) {
                       >
                         <i className="ri-file-download-line me-1"></i> Unduh Laporan Resmi (.TXT / .PDF)
                       </a>
+                    ) : ord.status === 'PENDING_PAYMENT' ? (
+                      <button className="btn btn-danger w-100 rounded-pill py-2.5 fw-bold small" disabled>
+                        <i className="ri-time-line me-1"></i> Menunggu Pembayaran...
+                      </button>
                     ) : (
                       <button className="btn btn-outline-secondary w-100 rounded-pill py-2.5 small" disabled>
                         <i className="ri-time-line me-1"></i> Menunggu Proses Selesai...

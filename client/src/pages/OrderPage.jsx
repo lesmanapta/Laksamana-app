@@ -128,10 +128,25 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
       // Trigger Midtrans Snap payment popup using the dedicated transaction Snap token if not using token
       if (!appliedToken && window.snap && data.snapToken && !data.snapToken.includes('SNAP-SIMULATED')) {
         window.snap.pay(data.snapToken, {
-          onSuccess: function (result) { onOrderSuccess(data.order); },
-          onPending: function (result) { onOrderSuccess(data.order); },
-          onError: function (result) { setError('Pembayaran Midtrans gagal atau dibatalkan.'); },
-          onClose: function () { onOrderSuccess(data.order); }
+          onSuccess: async function (result) {
+            try {
+              await fetch('/api/orders/confirm-payment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ orderId: data.order.id })
+              });
+            } catch (e) {}
+            onOrderSuccess(data.order);
+          },
+          onPending: function (result) {
+            onOrderSuccess(data.order);
+          },
+          onError: function (result) {
+            setError('Pembayaran Midtrans gagal atau dibatalkan. Dokumen Anda belum diproses.');
+          },
+          onClose: function () {
+            onOrderSuccess(data.order);
+          }
         });
       } else {
         onOrderSuccess(data.order);
