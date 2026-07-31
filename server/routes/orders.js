@@ -111,13 +111,20 @@ router.post('/buy-package', async (req, res) => {
 
 // POST /api/orders/create
 router.post('/create', cpUpload, async (req, res) => {
-  const { serviceSlug, serviceName, whatsapp, email, paymentMethod, price, tokenCode } = req.body;
+  const { serviceSlug, serviceName, whatsapp, email, paymentMethod, price, tokenCode, filterOptions } = req.body;
   const files = req.files || {};
   const mainFile = files['document'] ? files['document'][0] : null;
   const reportFile = files['plagiarismReport'] ? files['plagiarismReport'][0] : null;
 
   if (!whatsapp) {
     return res.status(400).json({ error: 'Nomor WhatsApp wajib diisi' });
+  }
+
+  let parsedFilters = { excludeQuotes: true, excludeBibliography: true, excludeSmallSources: false, smallSourceWords: 5 };
+  if (filterOptions) {
+    try {
+      parsedFilters = typeof filterOptions === 'string' ? JSON.parse(filterOptions) : filterOptions;
+    } catch (e) {}
   }
 
   const orderId = `LKS-${Math.floor(100000 + Math.random() * 900000)}`;
@@ -185,6 +192,7 @@ router.post('/create', cpUpload, async (req, res) => {
     paymentMethod: usedTokenCode ? `Token Paket (${usedTokenCode})` : (paymentMethod || 'Midtrans QRIS'),
     amount: calculatedAmount,
     status: initialStatus,
+    filterOptions: parsedFilters,
     createdAt: new Date().toISOString(),
     completedAt: null,
     result: analysisResult
@@ -198,8 +206,8 @@ router.post('/create', cpUpload, async (req, res) => {
     const db = getPool();
     // 1. Insert Into orders Table
     await db.query(`
-      INSERT INTO orders (id, service_slug, service_name, file_name, file_path, plagiarism_report_path, file_size, whatsapp, email, payment_method, amount, status, similarity_index, ai_score, page_count, word_count, matched_sources, report_download_url)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO orders (id, service_slug, service_name, file_name, file_path, plagiarism_report_path, file_size, whatsapp, email, payment_method, amount, status, similarity_index, ai_score, page_count, word_count, matched_sources, filter_options, report_download_url)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       newOrder.id,
       newOrder.serviceSlug,
@@ -218,6 +226,7 @@ router.post('/create', cpUpload, async (req, res) => {
       analysisResult.pageCount,
       analysisResult.wordCount,
       JSON.stringify(analysisResult.matchedSources),
+      JSON.stringify(parsedFilters),
       reportDownloadUrl
     ]);
 
@@ -236,7 +245,7 @@ router.post('/create', cpUpload, async (req, res) => {
     ]);
 
     // Send WA notification that order was received & is being processed
-    const waText = `📄 *PESANAN DITERIMA - LAKSAMANA.ID*\n\nHalo, dokumen *${fileName}* telah diterima dengan Kode Order: *${orderId}*.\n• Pembayaran: *${newOrder.paymentMethod}*\n• Tarif: *Rp ${newOrder.amount.toLocaleString('id-ID')}*\n\n⏳ *Status:* Dokumen Anda sedang diproses oleh sistem ${newOrder.serviceName}.\n\nSilakan tunggu, hasil skor & file laporan resmi akan dikirimkan otomatis ke WhatsApp ini setelah selesai!`;
+    const waText = `📄 *PESANAN DITERIMA - LAKSAMANA.ID*\n\nHalo, dokumen *${fileName}* telah diterima dengan Kode Order: *${orderId}*.\n• Filter Turnitin: *Quotes (${parsedFilters.excludeQuotes ? 'OFF' : 'ON'}), Biblio (${parsedFilters.excludeBibliography ? 'OFF' : 'ON'})*\n• Pembayaran: *${newOrder.paymentMethod}*\n• Tarif: *Rp ${newOrder.amount.toLocaleString('id-ID')}*\n\n⏳ *Status:* Dokumen Anda sedang diproses oleh sistem ${newOrder.serviceName}.\n\nSilakan tunggu, hasil skor & file laporan resmi akan dikirimkan otomatis ke WhatsApp ini setelah selesai!`;
     sendWhatsAppMessage(newOrder.whatsapp, waText);
 
     // Asynchronously trigger automated Drillbit or Turnitin Puppeteer worker to upload the file
@@ -257,7 +266,7 @@ router.post('/create', cpUpload, async (req, res) => {
           sendWhatsAppMessage(whatsapp, reportWaText, fullDownloadUrl);
         } else if (targetSlug === 'cek-plagiasi') {
           console.log(`🚀 [BACKGROUND WORKER] Triggering automated Turnitin check for ${orderId}...`);
-          const trnRes = await runTurnitinWorker(filePath, fileName, orderId);
+          const trnRes = await runTurnitinWorker(filePath, fileName, orderId, parsedFilters);
 
           await db.query(`
             UPDATE orders 
@@ -303,6 +312,7 @@ router.post('/midtrans-webhook', async (req, res) => {
   if (rows.length === 0) return res.status(404).json({ error: 'Order not found' });
   
   const order = rows[0];
+  const filterOpts = typeof order.filter_options === 'string' ? JSON.parse(order.filter_options) : (order.filter_options || {});
 
   if (transaction_status === 'capture' || transaction_status === 'settlement') {
     if (fraud_status === 'accept' || !fraud_status) {
@@ -318,7 +328,7 @@ router.post('/midtrans-webhook', async (req, res) => {
         const reportWaText = `📊 *HASIL CEK DRILLBIT LAKSAMANA SELESAI* 🎉\n\nHalo, pemeriksaan plagiasi Drillbit untuk dokumen *${order.file_name}* telah selesai dikerjakan!\n\n📋 *Ringkasan Drillbit Per-Kata:*\n• Kode Order : *${order.id}*\n• Total Kata : *${dblRes.wordCount.toLocaleString('id-ID')} kata*\n• Similarity Index : *${dblRes.similarityIndex}%*\n\n📄 *File laporan resmi Drillbit telah dilampirkan langsung pada pesan WhatsApp ini!*`;
         sendWhatsAppMessage(order.whatsapp, reportWaText, fullDownloadUrl);
       } else if (order.service_slug === 'cek-plagiasi') {
-        const trnRes = await runTurnitinWorker(order.file_path, order.file_name, order.id);
+        const trnRes = await runTurnitinWorker(order.file_path, order.file_name, order.id, filterOpts);
         await db.query(`
           UPDATE orders 
           SET status = 'COMPLETED', similarity_index = ?, ai_score = ?, completed_at = CURRENT_TIMESTAMP 
@@ -365,6 +375,7 @@ router.get('/track/:id', async (req, res) => {
       paymentMethod: r.payment_method,
       amount: r.amount,
       status: r.status,
+      filterOptions: typeof r.filter_options === 'string' ? JSON.parse(r.filter_options) : (r.filter_options || {}),
       createdAt: r.created_at,
       completedAt: r.completed_at,
       result: {
@@ -391,6 +402,7 @@ router.get('/download/:id', async (req, res) => {
   if (rows.length === 0) return res.status(404).json({ error: 'Laporan tidak ditemukan' });
   const order = rows[0];
   const matchedSources = typeof order.matched_sources === 'string' ? JSON.parse(order.matched_sources) : (order.matched_sources || []);
+  const filterOpts = typeof order.filter_options === 'string' ? JSON.parse(order.filter_options) : (order.filter_options || {});
 
   const reportText = `
 ===========================================================
@@ -402,6 +414,11 @@ Layanan         : ${order.service_name}
 Status Bayar    : ${order.status} (Midtrans Verified)
 Tanggal Cek     : ${new Date(order.created_at).toLocaleString('id-ID')}
 Waktu Kirim WA  : ${order.completed_at ? new Date(order.completed_at).toLocaleString('id-ID') : 'Sedang Diproses'}
+-----------------------------------------------------------
+FILTER TURNITIN YANG DIAKTIFKAN:
+- Exclude Quotes        : ${filterOpts.excludeQuotes ? 'AKTIF [YES]' : 'TIDAK [NO]'}
+- Exclude Bibliography  : ${filterOpts.excludeBibliography ? 'AKTIF [YES]' : 'TIDAK [NO]'}
+- Exclude Small Matches : ${filterOpts.excludeSmallSources ? `AKTIF [<${filterOpts.smallSourceWords || 5}w]` : 'TIDAK [NO]'}
 -----------------------------------------------------------
 SKOR HASIL ANALISIS LAKSAMANA:
 - Similarity Index   : ${order.similarity_index}%

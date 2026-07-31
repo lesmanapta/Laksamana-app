@@ -9,9 +9,9 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
   const [loading, setLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   
-  // Super Admin Login state
-  const [adminEmail, setAdminEmail] = useState('admin@laksamana.id');
-  const [adminPassword, setAdminPassword] = useState('');
+  // Super Admin Login state (Default: Lesmana.pta@gmail.com / Manto1909@)
+  const [adminEmail, setAdminEmail] = useState('Lesmana.pta@gmail.com');
+  const [adminPassword, setAdminPassword] = useState('Manto1909@');
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
 
@@ -72,7 +72,7 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
       });
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.error || 'Login Admin Gagal');
+      if (!res.ok) throw new Error(data.error || 'Login Super Admin Gagal');
 
       if (data.user.role !== 'superadmin' && data.user.role !== 'admin') {
         throw new Error('Akun Anda tidak memiliki hak akses Super Admin!');
@@ -257,11 +257,11 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
                 </div>
 
                 <div className="mb-4 text-start">
-                  <label className="form-label small fw-semibold">Password Admin</label>
+                  <label className="form-label small fw-semibold">Password Super Admin</label>
                   <input 
                     type="password" 
                     className="form-control rounded-3" 
-                    placeholder="Masukkan password admin"
+                    placeholder="Masukkan password super admin"
                     required 
                     value={adminPassword}
                     onChange={(e) => setAdminPassword(e.target.value)}
@@ -279,8 +279,8 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
 
               <div className="bg-light p-3 rounded-3 mt-4 text-start small">
                 <div className="fw-bold text-dark mb-1">💡 Kredensial Super Admin Default:</div>
-                <div className="text-secondary">Email: <code>admin@laksamana.id</code></div>
-                <div className="text-secondary">Password: <code>adminlaksamana2026</code></div>
+                <div className="text-secondary">Email: <code>Lesmana.pta@gmail.com</code></div>
+                <div className="text-secondary">Password: <code>Manto1909@</code></div>
               </div>
             </div>
           </div>
@@ -557,7 +557,7 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
         </div>
       )}
 
-      {/* TAB USERS */}
+      {/* TAB USERS - 2 Roles Standard (superadmin & user) */}
       {activeTab === 'USERS' && (
         <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
           <div className="table-responsive">
@@ -593,7 +593,6 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
                           onChange={(e) => handleRoleChange(u.id, e.target.value)}
                         >
                           <option value="user">user</option>
-                          <option value="admin">admin</option>
                           <option value="superadmin">superadmin</option>
                         </select>
                       </td>

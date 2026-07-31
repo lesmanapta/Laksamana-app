@@ -1,4 +1,5 @@
 const mysql = require('mysql2/promise');
+const bcrypt = require('bcryptjs');
 
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
@@ -9,6 +10,32 @@ const dbConfig = {
 };
 
 let pool;
+
+async function seedDefaultUsers(poolConnection) {
+  try {
+    const salt = await bcrypt.genSalt(10);
+
+    // 1. Super Admin Account: Lesmana.pta@gmail.com / Manto1909@
+    const adminPassHash = await bcrypt.hash('Manto1909@', salt);
+    await poolConnection.query(`
+      INSERT INTO users (id, name, email, password, whatsapp, role, tokens, is_verified)
+      VALUES ('usr_superadmin', 'Super Admin Lesmana', 'Lesmana.pta@gmail.com', ?, '08117676477', 'superadmin', 999, 1)
+      ON DUPLICATE KEY UPDATE password = ?, role = 'superadmin', is_verified = 1;
+    `, [adminPassHash, adminPassHash]);
+
+    // 2. Regular User Account: sumantolesmana1909@gmail.com / Manto1909
+    const userPassHash = await bcrypt.hash('Manto1909', salt);
+    await poolConnection.query(`
+      INSERT INTO users (id, name, email, password, whatsapp, role, tokens, is_verified)
+      VALUES ('usr_regular', 'Sumanto Lesmana', 'sumantolesmana1909@gmail.com', ?, '081234567890', 'user', 5, 1)
+      ON DUPLICATE KEY UPDATE password = ?, role = 'user', is_verified = 1;
+    `, [userPassHash, userPassHash]);
+
+    console.log(`🌱 [DATABASE SEEDER] Standard accounts seeded: Super Admin (Lesmana.pta@gmail.com) & User (sumantolesmana1909@gmail.com)`);
+  } catch (err) {
+    console.error(`⚠️ [DATABASE SEEDER NOTICE] Seeding info:`, err.message);
+  }
+}
 
 async function initDatabase() {
   try {
@@ -31,7 +58,7 @@ async function initDatabase() {
 
     console.log(`🗄️ [MYSQL DATABASE] Connected to database "${dbConfig.database}" at ${dbConfig.host}:${dbConfig.port}`);
 
-    // Create 'users' table
+    // Create 'users' table with 2 role standard (superadmin & user)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id VARCHAR(50) PRIMARY KEY,
@@ -67,6 +94,7 @@ async function initDatabase() {
         page_count INT DEFAULT 1,
         word_count INT DEFAULT 0,
         matched_sources JSON,
+        filter_options JSON,
         report_download_url VARCHAR(255),
         admin_notes TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -108,6 +136,12 @@ async function initDatabase() {
     try {
       await pool.query('ALTER TABLE orders ADD COLUMN completed_at TIMESTAMP NULL DEFAULT NULL;');
     } catch (e) {}
+    try {
+      await pool.query('ALTER TABLE orders ADD COLUMN filter_options JSON NULL;');
+    } catch (e) {}
+
+    // Run automatic seeder for default accounts
+    await seedDefaultUsers(pool);
 
   } catch (error) {
     console.error(`❌ [MYSQL DATABASE ERROR] Failed initializing database:`, error.message);
@@ -127,5 +161,6 @@ function getPool() {
 
 module.exports = {
   initDatabase,
-  getPool
+  getPool,
+  seedDefaultUsers
 };

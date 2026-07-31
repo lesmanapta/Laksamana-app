@@ -11,6 +11,12 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
   const [appliedToken, setAppliedToken] = useState(null);
   const [tokenLoading, setTokenLoading] = useState(false);
   const [tokenMsg, setTokenMsg] = useState('');
+
+  // Turnitin Exclusion Filter States
+  const [excludeQuotes, setExcludeQuotes] = useState(true);
+  const [excludeBibliography, setExcludeBibliography] = useState(true);
+  const [excludeSmallSources, setExcludeSmallSources] = useState(false);
+  const [smallSourceWords, setSmallSourceWords] = useState('5');
   
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -18,6 +24,7 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
   // Post-order success modal state
   const [createdOrder, setCreatedOrder] = useState(null);
 
+  const isTurnitin = activeService && (activeService.slug === 'cek-plagiasi' || activeService.id === 'cek-plagiasi');
   const isParafrase = activeService && (activeService.slug === 'parafrase' || activeService.id === 'parafrase');
   const isDrillbit = activeService && (activeService.slug === 'cek-drillbit' || activeService.id === 'cek-drillbit');
 
@@ -83,6 +90,13 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
     setError('');
     setSubmitting(true);
 
+    const filterOptions = {
+      excludeQuotes,
+      excludeBibliography,
+      excludeSmallSources,
+      smallSourceWords: parseInt(smallSourceWords) || 5
+    };
+
     const formData = new FormData();
     formData.append('document', file);
     if (plagiarismFile) {
@@ -95,6 +109,7 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
     formData.append('email', email);
     formData.append('paymentMethod', appliedToken ? `Token Paket (${appliedToken.code})` : paymentMethod);
     formData.append('price', finalPrice);
+    formData.append('filterOptions', JSON.stringify(filterOptions));
     if (appliedToken) {
       formData.append('tokenCode', appliedToken.code);
     }
@@ -158,10 +173,70 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
                 </select>
               </div>
 
+              {/* TURNITIN EXCLUSION FILTERS SECTION */}
+              {(isTurnitin || isDrillbit) && (
+                <div className="mb-4 bg-white p-4 rounded-4 border shadow-sm">
+                  <h6 className="fw-bold text-mint-heading mb-3">1. Pilih filter yang diinginkan</h6>
+                  <div className="d-flex flex-column gap-2">
+                    <div className="form-check cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        className="form-check-input me-2 cursor-pointer" 
+                        id="checkQuotes"
+                        checked={excludeQuotes}
+                        onChange={(e) => setExcludeQuotes(e.target.checked)}
+                      />
+                      <label className="form-check-label text-dark fw-medium cursor-pointer" htmlFor="checkQuotes">
+                        Kecualikan Kutipan (Exclude Quotes)
+                      </label>
+                    </div>
+
+                    <div className="form-check cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        className="form-check-input me-2 cursor-pointer" 
+                        id="checkBiblio"
+                        checked={excludeBibliography}
+                        onChange={(e) => setExcludeBibliography(e.target.checked)}
+                      />
+                      <label className="form-check-label text-dark fw-medium cursor-pointer" htmlFor="checkBiblio">
+                        Kecualikan Daftar Pustaka (Exclude Bibliography)
+                      </label>
+                    </div>
+
+                    <div className="form-check cursor-pointer d-flex align-items-center flex-wrap gap-2">
+                      <input 
+                        type="checkbox" 
+                        className="form-check-input me-2 cursor-pointer" 
+                        id="checkSmallSources"
+                        checked={excludeSmallSources}
+                        onChange={(e) => setExcludeSmallSources(e.target.checked)}
+                      />
+                      <label className="form-check-label text-dark fw-medium cursor-pointer" htmlFor="checkSmallSources">
+                        Kecualikan sumber yang kurang dari ...
+                      </label>
+                      {excludeSmallSources && (
+                        <div className="d-inline-flex align-items-center gap-1 ms-2">
+                          <input 
+                            type="number" 
+                            className="form-control form-control-sm rounded-3 text-center" 
+                            style={{ width: '60px' }}
+                            value={smallSourceWords}
+                            onChange={(e) => setSmallSourceWords(e.target.value)}
+                            min="1"
+                          />
+                          <span className="small text-muted">kata</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* UPLOAD FILE 1: Dokumen Utama */}
               <div className="mb-4">
                 <label className="form-label fw-semibold small text-secondary">
-                  1. UPLOAD DOKUMEN YANG INGIN DIPROSES (.PDF / .DOCX)
+                  2. UPLOAD DOKUMEN YANG INGIN DIPROSES (.PDF / .DOCX)
                 </label>
                 <div className="border border-2 border-dashed rounded-4 p-4 text-center bg-mint-light cursor-pointer">
                   <i className="ri-file-word-line display-4 text-mint-primary mb-2"></i>
@@ -207,7 +282,7 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
                   <div className="d-flex align-items-center gap-2 mb-2">
                     <i className="ri-file-search-line fs-4 text-mint-primary"></i>
                     <label className="form-label fw-bold small text-mint-heading mb-0">
-                      2. UPLOAD FILE LAPORAN HASIL CEK PLAGIASI / TURNITIN (.PDF)
+                      UPLOAD FILE LAPORAN HASIL CEK PLAGIASI / TURNITIN (.PDF)
                     </label>
                   </div>
                   <p className="small text-secondary mb-3">
