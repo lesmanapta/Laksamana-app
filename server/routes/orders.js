@@ -583,48 +583,37 @@ router.get('/track/:id', async (req, res) => {
 
 // GET /api/orders/download/:id
 router.get('/download/:id', async (req, res) => {
+  const orderId = req.params.id.trim();
   const db = getPool();
-  const [rows] = await db.query('SELECT * FROM orders WHERE id = ?', [req.params.id]);
+  try {
+    const [rows] = await db.query('SELECT * FROM orders WHERE id = ?', [orderId]);
 
-  if (rows.length === 0) return res.status(404).json({ error: 'Laporan tidak ditemukan' });
-  const order = rows[0];
-  const matchedSources = typeof order.matched_sources === 'string' ? JSON.parse(order.matched_sources) : (order.matched_sources || []);
-  const filterOpts = typeof order.filter_options === 'string' ? JSON.parse(order.filter_options) : (order.filter_options || {});
+    if (rows.length === 0) {
+      return res.status(404).send('Laporan tidak ditemukan.');
+    }
 
-  const reportText = `
-===========================================================
-        LAKSAMANA.ID - LAPORAN RESMI DRILLBIT / TURNITIN
-===========================================================
-Kode Pesanan    : ${order.id}
-Nama File       : ${order.file_name}
-Layanan         : ${order.service_name}
-Status Bayar    : ${order.status} (Midtrans Verified)
-Tanggal Cek     : ${new Date(order.created_at).toLocaleString('id-ID')}
-Waktu Kirim WA  : ${order.completed_at ? new Date(order.completed_at).toLocaleString('id-ID') : 'Sedang Diproses'}
------------------------------------------------------------
-FILTER TURNITIN YANG DIAKTIFKAN:
-- Exclude Quotes        : ${filterOpts.excludeQuotes ? 'AKTIF [YES]' : 'TIDAK [NO]'}
-- Exclude Bibliography  : ${filterOpts.excludeBibliography ? 'AKTIF [YES]' : 'TIDAK [NO]'}
-- Exclude Small Matches : ${filterOpts.excludeSmallSources ? `AKTIF [<${filterOpts.smallSourceWords || 5}w]` : 'TIDAK [NO]'}
------------------------------------------------------------
-SKOR HASIL ANALISIS LAKSAMANA:
-- Similarity Index   : ${order.similarity_index}%
-- Skor Konten AI     : ${order.ai_score}%
-- Total Jumlah Kata  : ${order.word_count.toLocaleString('id-ID')} kata
-- Estimasi Halaman   : ${order.page_count} halaman
------------------------------------------------------------
-SUMBER TERDETEKSI KEMIRIPAN:
-${matchedSources.map(s => `- [${s.percent}%] ${s.source}`).join('\n')}
+    const order = rows[0];
 
-===========================================================
-Status: DOKUMEN TERVERIFIKASI AMAN NO-REPOSITORY
-Terima kasih telah menggunakan sistem platform Laksamana!
-===========================================================
-`;
+    if (order.status !== 'COMPLETED') {
+      return res.status(400).send('Laporan hasil Turnitin/Drillbit belum tersedia. Dokumen Anda sedang dalam proses pemeriksaan.');
+    }
 
-  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename="Hasil_Laksamana_${order.id}.txt"`);
-  res.send(reportText);
+    if (!order.report_download_url || order.report_download_url.endsWith('.txt')) {
+      return res.status(400).send('File laporan PDF resmi belum diunggah oleh Admin.');
+    }
+
+    let relativePath = order.report_download_url.startsWith('/') ? order.report_download_url.slice(1) : order.report_download_url;
+    let fullFilePath = path.join(__dirname, '..', relativePath);
+
+    if (!fs.existsSync(fullFilePath)) {
+      return res.status(404).send('File PDF laporan resmi tidak ditemukan pada server.');
+    }
+
+    const downloadFileName = `Hasil_Laksamana_${order.id}.pdf`;
+    res.download(fullFilePath, downloadFileName);
+  } catch (err) {
+    res.status(500).send('Gagal mengunduh laporan: ' + err.message);
+  }
 });
 
 module.exports = router;

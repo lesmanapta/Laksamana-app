@@ -157,12 +157,12 @@ export default function TrackOrderPage({ initialOrderId }) {
 
                     {ord.status === 'COMPLETED' ? (
                       <a 
-                        href={`http://localhost:5000/api/orders/download/${ord.id}`} 
+                        href={`/api/orders/download/${ord.id}`} 
                         className="btn btn-mint-primary w-100 rounded-pill py-2.5 fw-bold shadow-sm"
                         target="_blank"
                         rel="noreferrer"
                       >
-                        <i className="ri-file-download-line me-1"></i> Unduh Laporan Resmi (.TXT / .PDF)
+                        <i className="ri-file-download-line me-1"></i> Unduh Laporan Resmi (.PDF)
                       </a>
                     ) : ord.status === 'PENDING_PAYMENT' ? (
                       <button className="btn btn-danger w-100 rounded-pill py-2.5 fw-bold small" disabled>

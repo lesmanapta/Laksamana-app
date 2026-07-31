@@ -57,7 +57,14 @@ async function seedDefaultData(poolConnection) {
       console.log('🌱 [DATABASE SEEDER] Default packages inserted into MySQL.');
     }
 
-    console.log(`🌱 [DATABASE SEEDER] All default accounts, services, and packages seeded in MySQL.`);
+    // 5. Cleanup any legacy orders that had dummy .txt reports automatically marked as COMPLETED
+    await poolConnection.query(`
+      UPDATE orders 
+      SET status = 'PROCESSING', admin_notes = 'Menunggu pengerjaan / unggah laporan PDF Turnitin oleh Admin'
+      WHERE status = 'COMPLETED' AND (report_download_url LIKE '%.txt' OR report_download_url IS NULL OR report_download_url = '');
+    `);
+
+    console.log(`🌱 [DATABASE SEEDER] All default accounts, services, packages, and order statuses updated in MySQL.`);
   } catch (err) {
     console.error(`⚠️ [DATABASE SEEDER NOTICE] Seeding info:`, err.message);
   }
