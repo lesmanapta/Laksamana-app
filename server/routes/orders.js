@@ -596,22 +596,38 @@ router.get('/track/:id', async (req, res) => {
 
     if (rows.length === 0) return res.status(404).json({ error: 'Pesanan Laksamana tidak ditemukan.' });
 
-    const formattedOrders = rows.map(r => ({
-      id: r.id,
-      serviceSlug: r.service_slug,
-      serviceName: r.service_name,
-      fileName: r.file_name,
-      filePath: r.file_path,
-      plagiarismReportPath: r.plagiarism_report_path,
-      fileSize: r.file_size,
-      whatsapp: r.whatsapp,
-      email: r.email,
-      paymentMethod: r.payment_method,
-      amount: r.amount,
-      status: r.status,
-      filterOptions: typeof r.filter_options === 'string' ? JSON.parse(r.filter_options) : (r.filter_options || {}),
-      createdAt: r.created_at,
-      completedAt: r.completed_at,
+    const now = new Date();
+    const formattedOrders = await Promise.all(rows.map(async r => {
+      let currentStatus = r.status;
+      const createdAtDate = new Date(r.created_at);
+      const ageInMinutes = (now - createdAtDate) / (1000 * 60);
+
+      // Auto cancel order if pending payment > 30 mins
+      if (currentStatus === 'PENDING_PAYMENT' && ageInMinutes > 30) {
+        currentStatus = 'FAILED';
+        await db.query(`
+          UPDATE orders 
+          SET status = 'FAILED', admin_notes = 'Otomatis dibatalkan: Pembayaran melebihi batas waktu 30 menit' 
+          WHERE id = ?
+        `, [r.id]);
+      }
+
+      return {
+        id: r.id,
+        serviceSlug: r.service_slug,
+        serviceName: r.service_name,
+        fileName: r.file_name,
+        filePath: r.file_path,
+        plagiarismReportPath: r.plagiarism_report_path,
+        fileSize: r.file_size,
+        whatsapp: r.whatsapp,
+        email: r.email,
+        paymentMethod: r.payment_method,
+        amount: r.amount,
+        status: currentStatus,
+        filterOptions: typeof r.filter_options === 'string' ? JSON.parse(r.filter_options) : (r.filter_options || {}),
+        createdAt: r.created_at,
+        completedAt: r.completed_at,
       result: {
         similarityIndex: r.similarity_index,
         aiScore: r.ai_score,
@@ -620,7 +636,8 @@ router.get('/track/:id', async (req, res) => {
         matchedSources: typeof r.matched_sources === 'string' ? JSON.parse(r.matched_sources) : (r.matched_sources || []),
         reportDownloadUrl: r.report_download_url
       }
-    }));
+    };
+  }));
 
     res.json({ orders: formattedOrders });
   } catch (err) {

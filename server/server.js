@@ -4,6 +4,7 @@ const cors = require('cors');
 const path = require('path');
 
 const { initDatabase } = require('./config/database');
+const { startExpiryWorker } = require('./services/expiryWorker');
 const authRoutes = require('./routes/auth');
 const servicesRoutes = require('./routes/services');
 const ordersRoutes = require('./routes/orders');
@@ -44,6 +45,9 @@ if (require('fs').existsSync(clientBuildPath)) {
 
 // Initialize MySQL Database & Start Express Server
 initDatabase().then(() => {
+  // Start background payment timeout monitor (30 minutes)
+  startExpiryWorker();
+
   app.listen(PORT, () => {
     console.log(`====================================================`);
     console.log(`  🚀 LAKSAMANA BACKEND SERVER RUNNING ON PORT: ${PORT} `);
@@ -51,6 +55,7 @@ initDatabase().then(() => {
     console.log(`  👨‍💻 Admin API: http://localhost:${PORT}/api/admin/orders`);
     console.log(`  💳 Midtrans Gateway: READY (Merchant ID: ${process.env.MIDTRANS_MERCHANT_ID})`);
     console.log(`  💬 WhatsApp Fonnte: READY (Token Set)`);
+    console.log(`  ⏰ Payment Expiry Worker: ACTIVE (30-minute timeout)`);
     console.log(`====================================================`);
   });
 });
