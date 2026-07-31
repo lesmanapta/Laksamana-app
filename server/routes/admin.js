@@ -18,7 +18,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// GET /api/admin/orders - Fetch all orders from MySQL database with created_at & completed_at timestamps
+// GET /api/admin/orders - Fetch all orders from MySQL database
 router.get('/orders', async (req, res) => {
   try {
     const db = getPool();
@@ -56,6 +56,19 @@ router.get('/orders', async (req, res) => {
   }
 });
 
+// DELETE /api/admin/orders/:id - Delete order
+router.delete('/orders/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const db = getPool();
+    await db.query('DELETE FROM orders WHERE id = ?', [id]);
+    await db.query('DELETE FROM transactions WHERE order_id = ?', [id]);
+    res.json({ message: `Pesanan ${id} berhasil dihapus dari MySQL database.` });
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal menghapus pesanan: ' + err.message });
+  }
+});
+
 // GET /api/admin/users - Fetch all registered users
 router.get('/users', async (req, res) => {
   try {
@@ -64,6 +77,35 @@ router.get('/users', async (req, res) => {
     res.json({ users });
   } catch (err) {
     res.status(500).json({ error: 'Gagal mengambil data pengguna dari MySQL: ' + err.message });
+  }
+});
+
+// PUT /api/admin/users/:id/role - Update user role (user, admin, superadmin)
+router.put('/users/:id/role', async (req, res) => {
+  const { id } = req.params;
+  const { role } = req.body;
+  if (!role || !['user', 'admin', 'superadmin'].includes(role)) {
+    return res.status(400).json({ error: 'Role tidak valid (user, admin, superadmin).' });
+  }
+
+  try {
+    const db = getPool();
+    await db.query('UPDATE users SET role = ? WHERE id = ?', [role, id]);
+    res.json({ message: `Role user ${id} berhasil diubah menjadi ${role}` });
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal mengubah role user: ' + err.message });
+  }
+});
+
+// DELETE /api/admin/users/:id - Delete user account
+router.delete('/users/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const db = getPool();
+    await db.query('DELETE FROM users WHERE id = ?', [id]);
+    res.json({ message: `Akun user ${id} berhasil dihapus.` });
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal menghapus user: ' + err.message });
   }
 });
 
@@ -89,7 +131,58 @@ router.post('/users/:id/verify', async (req, res) => {
   }
 });
 
-// POST /api/admin/orders/:id/complete - Admin completes order (e.g. Paraphrased document) & records completed_at timestamp
+// GET /api/admin/tokens - Fetch all package tokens & coupons
+router.get('/tokens', async (req, res) => {
+  try {
+    const db = getPool();
+    const [tokens] = await db.query('SELECT * FROM package_tokens ORDER BY created_at DESC');
+    res.json({ tokens });
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal mengambil data token/kupon dari MySQL: ' + err.message });
+  }
+});
+
+// POST /api/admin/tokens/generate - Generate custom token / coupon
+router.post('/tokens/generate', async (req, res) => {
+  const { customCode, packageName, quotaTotal, whatsapp, userEmail } = req.body;
+  const tokenCode = customCode ? customCode.trim().toUpperCase() : `LKS-PKG-${Math.floor(100000 + Math.random() * 900000)}`;
+  const quota = parseInt(quotaTotal) || 3;
+
+  try {
+    const db = getPool();
+    await db.query(`
+      INSERT INTO package_tokens (token_code, package_id, package_name, user_email, whatsapp, quota_total, quota_remaining, status)
+      VALUES (?, 'custom_pkg', ?, ?, ?, ?, ?, 'ACTIVE')
+    `, [tokenCode, packageName || 'Token Admin Custom', userEmail || '', whatsapp || '', quota, quota]);
+
+    if (whatsapp) {
+      const waMsg = `🎟️ *KODE TOKEN / KUPON PAKET LAKSAMANA*\n\nHalo, Anda telah mendapatkan Kode Token Paket Laksamana:\n\n• Kode Token : \`${tokenCode}\`\n• Nama Paket : *${packageName || 'Token Admin Custom'}*\n• Kuota Cek : *${quota}x Cek Plagiasi*\n\nGunakan Kode Token ini saat checkout order di website Laksamana untuk *Skip Pembayaran*!\n🌐 http://localhost:3000`;
+      await sendWhatsAppMessage(whatsapp, waMsg);
+    }
+
+    res.status(201).json({
+      message: `Token ${tokenCode} berhasil diterbitkan (${quota}x kuota)!`,
+      tokenCode,
+      quota
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal menerbitkan token: ' + err.message });
+  }
+});
+
+// DELETE /api/admin/tokens/:code - Revoke / delete token
+router.delete('/tokens/:code', async (req, res) => {
+  const { code } = req.params;
+  try {
+    const db = getPool();
+    await db.query('DELETE FROM package_tokens WHERE UPPER(token_code) = ?', [code.toUpperCase()]);
+    res.json({ message: `Token ${code} berhasil dihapus/dibatalkan.` });
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal menghapus token: ' + err.message });
+  }
+});
+
+// POST /api/admin/orders/:id/complete - Admin completes order
 router.post('/orders/:id/complete', upload.single('revisedDocument'), async (req, res) => {
   const { id } = req.params;
   const { similarityIndex, aiScore, adminNotes } = req.body;
@@ -108,7 +201,6 @@ router.post('/orders/:id/complete', upload.single('revisedDocument'), async (req
     const newAIScore = parseInt(aiScore) || order.ai_score || 1;
     const reportDownloadUrl = file ? `/uploads/reports/${file.filename}` : order.report_download_url;
 
-    // Update status to COMPLETED and set completed_at timestamp to CURRENT_TIMESTAMP
     await db.query(`
       UPDATE orders 
       SET status = 'COMPLETED', similarity_index = ?, ai_score = ?, report_download_url = ?, admin_notes = ?, completed_at = CURRENT_TIMESTAMP

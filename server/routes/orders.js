@@ -38,9 +38,80 @@ const cpUpload = upload.fields([
   { name: 'plagiarismReport', maxCount: 1 }
 ]);
 
+// POST /api/orders/validate-token - Validate Token Code / Kupon Paket Laksamana
+router.post('/validate-token', async (req, res) => {
+  const { tokenCode } = req.body;
+  if (!tokenCode || !tokenCode.trim()) {
+    return res.status(400).json({ error: 'Kode token wajib diisi.' });
+  }
+
+  const code = tokenCode.trim().toUpperCase();
+
+  try {
+    const db = getPool();
+    const [rows] = await db.query('SELECT * FROM package_tokens WHERE UPPER(token_code) = ?', [code]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Kode token / kupon tidak ditemukan atau tidak valid.' });
+    }
+
+    const tokenData = rows[0];
+
+    if (tokenData.status !== 'ACTIVE' || tokenData.quota_remaining <= 0) {
+      return res.status(400).json({ error: 'Kuota token paket ini sudah habis atau telah kedaluwarsa.' });
+    }
+
+    res.json({
+      valid: true,
+      message: `Token Paket Berhasil Digunakan! (${tokenData.package_name})`,
+      token: {
+        code: tokenData.token_code,
+        packageName: tokenData.package_name,
+        quotaTotal: tokenData.quota_total,
+        quotaRemaining: tokenData.quota_remaining
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal memverifikasi token paket: ' + err.message });
+  }
+});
+
+// POST /api/orders/buy-package - Buy Paket Laksamana & Generate Package Token
+router.post('/buy-package', async (req, res) => {
+  const { packageId, packageName, price, whatsapp, email, quota } = req.body;
+
+  if (!whatsapp || !packageId) {
+    return res.status(400).json({ error: 'Paket dan Nomor WhatsApp wajib diisi.' });
+  }
+
+  const tokenCode = `LKS-PKG-${packageId.toUpperCase().slice(-3)}-${Math.floor(100000 + Math.random() * 900000)}`;
+  const quotaTotal = parseInt(quota) || 3;
+
+  try {
+    const db = getPool();
+    await db.query(`
+      INSERT INTO package_tokens (token_code, package_id, package_name, user_email, whatsapp, quota_total, quota_remaining, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE')
+    `, [tokenCode, packageId, packageName || 'Paket Laksamana', email || '', whatsapp, quotaTotal, quotaTotal]);
+
+    // Send WA notification with Token Code
+    const waMsg = `🎉 *PEMBELIAN PAKET LAKSAMANA BERHASIL!*\n\nHalo, paket *${packageName}* Anda telah sukses dibuat.\n\n🎟️ *KODE TOKEN ANDA:* \`${tokenCode}\`\n• Kuota Cek: *${quotaTotal}x Cek Plagiasi*\n• Status: ✅ AKTIF\n\nGunakan Kode Token \`${tokenCode}\` saat order di website Laksamana untuk *Skip Pembayaran*!\n🌐 http://localhost:3000`;
+    sendWhatsAppMessage(whatsapp, waMsg);
+
+    res.status(201).json({
+      message: 'Pembelian Paket Laksamana Berhasil! Kode Token telah dikirimkan ke WA.',
+      tokenCode,
+      quotaTotal,
+      packageName
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal memproses paket: ' + err.message });
+  }
+});
+
 // POST /api/orders/create
 router.post('/create', cpUpload, async (req, res) => {
-  const { serviceSlug, serviceName, whatsapp, email, paymentMethod, price } = req.body;
+  const { serviceSlug, serviceName, whatsapp, email, paymentMethod, price, tokenCode } = req.body;
   const files = req.files || {};
   const mainFile = files['document'] ? files['document'][0] : null;
   const reportFile = files['plagiarismReport'] ? files['plagiarismReport'][0] : null;
@@ -61,6 +132,30 @@ router.post('/create', cpUpload, async (req, res) => {
   let calculatedWordCount = Math.max(150, Math.ceil(fileSize / 18));
   let calculatedAmount = parseInt(price) || 10000;
   let reportDownloadUrl = `/api/orders/download/${orderId}`;
+  let usedTokenCode = null;
+
+  // Process Token Code / Coupon if provided
+  if (tokenCode && tokenCode.trim()) {
+    try {
+      const db = getPool();
+      const code = tokenCode.trim().toUpperCase();
+      const [tokenRows] = await db.query('SELECT * FROM package_tokens WHERE UPPER(token_code) = ? AND status = "ACTIVE" AND quota_remaining > 0', [code]);
+
+      if (tokenRows.length > 0) {
+        const token = tokenRows[0];
+        calculatedAmount = 0; // 100% Free / Token Redeem
+        usedTokenCode = token.token_code;
+
+        // Deduct 1 quota from token
+        const newQuota = token.quota_remaining - 1;
+        const newStatus = newQuota <= 0 ? 'EXHAUSTED' : 'ACTIVE';
+        await db.query('UPDATE package_tokens SET quota_remaining = ?, status = ? WHERE token_code = ?', [newQuota, newStatus, token.token_code]);
+        console.log(`🎟️ [TOKEN SYSTEM] Redeemed token ${token.token_code}. Remaining quota: ${newQuota}`);
+      }
+    } catch (tokenErr) {
+      console.error('Error redeeming token:', tokenErr.message);
+    }
+  }
 
   let analysisResult = {
     similarityIndex: 0,
@@ -70,7 +165,7 @@ router.post('/create', cpUpload, async (req, res) => {
     matchedSources: []
   };
 
-  if (targetSlug === 'cek-drillbit') {
+  if (targetSlug === 'cek-drillbit' && !usedTokenCode) {
     calculatedAmount = calculatedWordCount * 10;
   }
 
@@ -87,7 +182,7 @@ router.post('/create', cpUpload, async (req, res) => {
     fileSize,
     whatsapp,
     email: email || '',
-    paymentMethod: paymentMethod || 'Midtrans QRIS',
+    paymentMethod: usedTokenCode ? `Token Paket (${usedTokenCode})` : (paymentMethod || 'Midtrans QRIS'),
     amount: calculatedAmount,
     status: initialStatus,
     createdAt: new Date().toISOString(),
@@ -134,14 +229,14 @@ router.post('/create', cpUpload, async (req, res) => {
       transactionId,
       newOrder.id,
       newOrder.amount,
-      paymentMethod || 'gopay_qris',
+      newOrder.paymentMethod,
       newOrder.snapToken,
       newOrder.snapRedirectUrl,
-      'PENDING'
+      usedTokenCode ? 'SETTLEMENT' : 'PENDING'
     ]);
 
     // Send WA notification that order was received & is being processed
-    const waText = `📄 *PESANAN DITERIMA - LAKSAMANA.ID*\n\nHalo, dokumen *${fileName}* telah diterima dengan Kode Order: *${orderId}*.\n\n⏳ *Status:* Dokumen Anda sedang diproses oleh sistem ${newOrder.serviceName}.\n\nSilakan tunggu, hasil skor & file laporan resmi akan dikirimkan otomatis ke WhatsApp ini setelah selesai!`;
+    const waText = `📄 *PESANAN DITERIMA - LAKSAMANA.ID*\n\nHalo, dokumen *${fileName}* telah diterima dengan Kode Order: *${orderId}*.\n• Pembayaran: *${newOrder.paymentMethod}*\n• Tarif: *Rp ${newOrder.amount.toLocaleString('id-ID')}*\n\n⏳ *Status:* Dokumen Anda sedang diproses oleh sistem ${newOrder.serviceName}.\n\nSilakan tunggu, hasil skor & file laporan resmi akan dikirimkan otomatis ke WhatsApp ini setelah selesai!`;
     sendWhatsAppMessage(newOrder.whatsapp, waText);
 
     // Asynchronously trigger automated Drillbit or Turnitin Puppeteer worker to upload the file

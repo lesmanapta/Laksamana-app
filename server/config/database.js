@@ -89,6 +89,22 @@ async function initDatabase() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
+    // Create 'package_tokens' table for Paket Laksamana & Coupon System
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS package_tokens (
+        token_code VARCHAR(50) PRIMARY KEY,
+        package_id VARCHAR(50) NOT NULL,
+        package_name VARCHAR(100) NOT NULL,
+        user_email VARCHAR(100),
+        whatsapp VARCHAR(30),
+        quota_total INT DEFAULT 1,
+        quota_remaining INT DEFAULT 1,
+        status VARCHAR(20) DEFAULT 'ACTIVE',
+        expires_at TIMESTAMP NULL DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
     try {
       await pool.query('ALTER TABLE orders ADD COLUMN completed_at TIMESTAMP NULL DEFAULT NULL;');
     } catch (e) {}

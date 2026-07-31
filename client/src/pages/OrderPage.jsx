@@ -7,7 +7,11 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
   const [whatsapp, setWhatsapp] = useState('');
   const [email, setEmail] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Midtrans QRIS / GoPay');
-  const [tokenCode, setTokenCode] = useState('');
+  const [tokenCodeInput, setTokenCodeInput] = useState('');
+  const [appliedToken, setAppliedToken] = useState(null);
+  const [tokenLoading, setTokenLoading] = useState(false);
+  const [tokenMsg, setTokenMsg] = useState('');
+  
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   
@@ -19,6 +23,9 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
 
   const estimatedWordCount = file ? Math.max(150, Math.ceil(file.size / 18)) : 0;
   const estimatedDrillbitPrice = estimatedWordCount * 10;
+  
+  const basePrice = isDrillbit ? estimatedDrillbitPrice : (activeService ? activeService.price : 10000);
+  const finalPrice = appliedToken ? 0 : basePrice;
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -29,6 +36,32 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
   const handlePlagiarismFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       setPlagiarismFile(e.target.files[0]);
+    }
+  };
+
+  const handleValidateToken = async () => {
+    if (!tokenCodeInput.trim()) return;
+    setTokenLoading(true);
+    setTokenMsg('');
+    setError('');
+
+    try {
+      const res = await fetch('/api/orders/validate-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tokenCode: tokenCodeInput.trim() })
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || 'Gagal memvalidasi token');
+
+      setAppliedToken(data.token);
+      setTokenMsg(`✅ ${data.message}`);
+    } catch (err) {
+      setAppliedToken(null);
+      setTokenMsg(`❌ ${err.message}`);
+    } finally {
+      setTokenLoading(false);
     }
   };
 
@@ -60,8 +93,11 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
     formData.append('serviceName', activeService ? activeService.title : 'Cek Plagiasi No-Repository');
     formData.append('whatsapp', whatsapp);
     formData.append('email', email);
-    formData.append('paymentMethod', paymentMethod);
-    formData.append('price', isDrillbit ? estimatedDrillbitPrice : (activeService ? activeService.price : 10000));
+    formData.append('paymentMethod', appliedToken ? `Token Paket (${appliedToken.code})` : paymentMethod);
+    formData.append('price', finalPrice);
+    if (appliedToken) {
+      formData.append('tokenCode', appliedToken.code);
+    }
 
     try {
       const res = await fetch('/api/orders/create', {
@@ -74,8 +110,8 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
 
       setCreatedOrder(data.order);
 
-      // Trigger Midtrans Snap payment popup using the dedicated transaction Snap token
-      if (window.snap && data.snapToken && !data.snapToken.includes('SNAP-SIMULATED')) {
+      // Trigger Midtrans Snap payment popup using the dedicated transaction Snap token if not using token
+      if (!appliedToken && window.snap && data.snapToken && !data.snapToken.includes('SNAP-SIMULATED')) {
         window.snap.pay(data.snapToken, {
           onSuccess: function (result) { onOrderSuccess(data.order); },
           onPending: function (result) { onOrderSuccess(data.order); },
@@ -223,42 +259,73 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
                 </div>
               </div>
 
+              {/* TOKEN / KUPON PAKET SYSTEM */}
               <div className="mb-4">
                 <label className="form-label fw-semibold small text-secondary">KODE TOKEN / KUPON PAKET LAKSAMANA (Opsional)</label>
                 <div className="input-group">
                   <input 
                     type="text" 
                     className="form-control rounded-start-3" 
-                    placeholder="Masukkan Kode Token Paket Laksamana" 
-                    value={tokenCode}
-                    onChange={(e) => setTokenCode(e.target.value)}
+                    placeholder="Masukkan Kode Token Paket Laksamana (ex: LKS-PKG-3X-...)" 
+                    value={tokenCodeInput}
+                    onChange={(e) => setTokenCodeInput(e.target.value)}
                   />
-                  <button className="btn btn-outline-secondary rounded-end-3" type="button">
-                    Gunakan Token
+                  <button 
+                    onClick={handleValidateToken} 
+                    className="btn btn-mint-primary rounded-end-3 px-4 fw-semibold" 
+                    type="button"
+                    disabled={tokenLoading}
+                  >
+                    {tokenLoading ? 'Memeriksa...' : 'Gunakan Token'}
                   </button>
                 </div>
+                {tokenMsg && (
+                  <div className={`small mt-2 font-weight-bold ${appliedToken ? 'text-success' : 'text-danger'}`}>
+                    {tokenMsg}
+                  </div>
+                )}
+                {appliedToken && (
+                  <div className="alert bg-success text-white p-2 rounded-3 mt-2 small d-flex align-items-center justify-content-between">
+                    <div>
+                      🎟️ <b>Token Paket Aktif:</b> {appliedToken.packageName} (Sisa Kuota: <b>{appliedToken.quotaRemaining}x Cek</b>)
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => { setAppliedToken(null); setTokenMsg(''); setTokenCodeInput(''); }} 
+                      className="btn btn-sm btn-light py-0 text-dark rounded-pill"
+                    >
+                      Batal Token
+                    </button>
+                  </div>
+                )}
               </div>
 
-              <div className="mb-4">
-                <label className="form-label fw-semibold small mb-2 text-secondary">METODE PEMBAYARAN MIDTRANS</label>
-                <div className="row g-2">
-                  {['Midtrans QRIS / GoPay', 'Bank Transfer (BCA/Mandiri/BRI)', 'ShopeePay / OVO / Dana'].map(pm => (
-                    <div key={pm} className="col-md-4">
-                      <div 
-                        onClick={() => setPaymentMethod(pm)}
-                        className={`p-3 rounded-3 border cursor-pointer text-center small fw-medium ${paymentMethod === pm ? 'border-success bg-mint-light text-mint-heading fw-bold' : 'bg-light text-secondary'}`}
-                      >
-                        {pm}
+              {!appliedToken && (
+                <div className="mb-4">
+                  <label className="form-label fw-semibold small mb-2 text-secondary">METODE PEMBAYARAN MIDTRANS</label>
+                  <div className="row g-2">
+                    {['Midtrans QRIS / GoPay', 'Bank Transfer (BCA/Mandiri/BRI)', 'ShopeePay / OVO / Dana'].map(pm => (
+                      <div key={pm} className="col-md-4">
+                        <div 
+                          onClick={() => setPaymentMethod(pm)}
+                          className={`p-3 rounded-3 border cursor-pointer text-center small fw-medium ${paymentMethod === pm ? 'border-success bg-mint-light text-mint-heading fw-bold' : 'bg-light text-secondary'}`}
+                        >
+                          {pm}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="bg-mint-light p-3 rounded-3 d-flex align-items-center justify-content-between mb-4 border border-success border-opacity-10">
                 <span className="fw-medium text-mint-heading">Total Pembayaran:</span>
                 <span className="fs-4 fw-extrabold text-mint-primary">
-                  Rp {isDrillbit && file ? estimatedDrillbitPrice.toLocaleString('id-ID') : (activeService ? activeService.price.toLocaleString('id-ID') : '10.000')}
+                  {appliedToken ? (
+                    <span><s className="text-muted fs-6 me-2">Rp {basePrice.toLocaleString('id-ID')}</s> FREE (Rp 0)</span>
+                  ) : (
+                    `Rp ${finalPrice.toLocaleString('id-ID')}`
+                  )}
                 </span>
               </div>
 
@@ -268,9 +335,11 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
                 disabled={submitting}
               >
                 {submitting ? (
-                  <span><span className="spinner-border spinner-border-sm me-2"></span>Menghubungkan Midtrans...</span>
+                  <span><span className="spinner-border spinner-border-sm me-2"></span>Memproses Pemesanan...</span>
                 ) : (
-                  <span>Bayar via Midtrans & Proses Dokumen <i className="ri-secure-payment-line ms-1"></i></span>
+                  <span>
+                    {appliedToken ? 'Proses Dokumen Gratis via Token Paket 🎟️' : 'Bayar via Midtrans & Proses Dokumen 💳'}
+                  </span>
                 )}
               </button>
             </form>

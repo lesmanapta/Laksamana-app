@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 export default function AdminDashboard({ user, onLoginSuccess }) {
   const [orders, setOrders] = useState([]);
   const [usersList, setUsersList] = useState([]);
+  const [tokensList, setTokensList] = useState([]);
   const [activeTab, setActiveTab] = useState('ORDERS');
   const [filter, setFilter] = useState('ALL');
   const [loading, setLoading] = useState(false);
@@ -22,6 +23,13 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
 
+  // Generate Custom Token form state
+  const [customTokenCode, setCustomTokenCode] = useState('');
+  const [tokenPkgName, setTokenPkgName] = useState('Token Promo Laksamana');
+  const [tokenQuota, setTokenQuota] = useState('5');
+  const [tokenWa, setTokenWa] = useState('');
+  const [tokenGenerating, setTokenGenerating] = useState(false);
+
   const isSuperAdmin = user && (user.role === 'superadmin' || user.role === 'admin');
 
   const fetchAdminData = async () => {
@@ -34,6 +42,10 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
       const resUsers = await fetch('/api/admin/users');
       const dataUsers = await resUsers.json();
       setUsersList(dataUsers.users || []);
+
+      const resTokens = await fetch('/api/admin/tokens');
+      const dataTokens = await resTokens.json();
+      setTokensList(dataTokens.tokens || []);
     } catch (err) {
       console.error('Error fetching admin data:', err);
     } finally {
@@ -82,6 +94,79 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
       const res = await fetch(`/api/admin/users/${userId}/verify`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal mengaktivasi user');
+      setMessage(`✅ ${data.message}`);
+      fetchAdminData();
+    } catch (err) {
+      setMessage(`❌ ${err.message}`);
+    }
+  };
+
+  const handleRoleChange = async (userId, newRole) => {
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/role`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal mengubah role');
+      setMessage(`✅ ${data.message}`);
+      fetchAdminData();
+    } catch (err) {
+      setMessage(`❌ ${err.message}`);
+    }
+  };
+
+  const handleDeleteUser = async (userId, userEmail) => {
+    if (!window.confirm(`Hapus akun user ${userEmail}?`)) return;
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal menghapus user');
+      setMessage(`✅ ${data.message}`);
+      fetchAdminData();
+    } catch (err) {
+      setMessage(`❌ ${err.message}`);
+    }
+  };
+
+  const handleGenerateToken = async (e) => {
+    e.preventDefault();
+    setTokenGenerating(true);
+    setMessage('');
+
+    try {
+      const res = await fetch('/api/admin/tokens/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customCode: customTokenCode,
+          packageName: tokenPkgName,
+          quotaTotal: tokenQuota,
+          whatsapp: tokenWa
+        })
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || 'Gagal menerbitkan token');
+
+      setMessage(`✅ ${data.message}`);
+      setCustomTokenCode('');
+      setTokenWa('');
+      fetchAdminData();
+    } catch (err) {
+      setMessage(`❌ ${err.message}`);
+    } finally {
+      setTokenGenerating(false);
+    }
+  };
+
+  const handleDeleteToken = async (tokenCode) => {
+    if (!window.confirm(`Hapus/batalkan token ${tokenCode}?`)) return;
+    try {
+      const res = await fetch(`/api/admin/tokens/${tokenCode}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal menghapus token');
       setMessage(`✅ ${data.message}`);
       fetchAdminData();
     } catch (err) {
@@ -229,6 +314,14 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
         </li>
         <li className="nav-item">
           <button 
+            className={`nav-link border-0 rounded-pill px-4 py-2 me-2 ${activeTab === 'TOKENS' ? 'bg-custom-orange text-white fw-bold' : 'text-dark bg-light'}`}
+            onClick={() => setActiveTab('TOKENS')}
+          >
+            🎟️ Kelola Token & Kupon ({tokensList.length})
+          </button>
+        </li>
+        <li className="nav-item">
+          <button 
             className={`nav-link border-0 rounded-pill px-4 py-2 ${activeTab === 'USERS' ? 'bg-custom-orange text-white fw-bold' : 'text-dark bg-light'}`}
             onClick={() => setActiveTab('USERS')}
           >
@@ -297,12 +390,12 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
                             <div className="d-flex flex-column gap-1 mt-1">
                               {ord.filePath && (
                                 <a href={`http://localhost:5000${ord.filePath}`} download className="small text-primary text-decoration-none">
-                                  <i className="ri-file-download-line me-1"></i> 1. File Utama (Mau Diparafrase)
+                                  <i className="ri-file-download-line me-1"></i> 1. File Utama
                                 </a>
                               )}
                               {ord.plagiarismReportPath && (
                                 <a href={`http://localhost:5000${ord.plagiarismReportPath}`} download className="small text-danger text-decoration-none">
-                                  <i className="ri-file-search-line me-1"></i> 2. Laporan Turnitin Pelanggan
+                                  <i className="ri-file-search-line me-1"></i> 2. Laporan Turnitin
                                 </a>
                               )}
                             </div>
@@ -344,6 +437,127 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
         </div>
       )}
 
+      {/* TAB TOKENS & KUPON */}
+      {activeTab === 'TOKENS' && (
+        <div>
+          <div className="row mb-4">
+            <div className="col-12 col-md-5 mb-4 mb-md-0">
+              <div className="card border-0 shadow-sm rounded-4 p-4">
+                <h5 className="fw-bold text-mint-heading mb-3">🎟️ Terbitkan Token / Kupon Custom</h5>
+                <form onSubmit={handleGenerateToken}>
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold">Kode Token (Opsional)</label>
+                    <input 
+                      type="text" 
+                      className="form-control rounded-3" 
+                      placeholder="Contoh: PROMO50 / LKS-SULTAN"
+                      value={customTokenCode}
+                      onChange={(e) => setCustomTokenCode(e.target.value)}
+                    />
+                    <small className="text-muted">Kosongkan untuk auto-generate kode token unik</small>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold">Nama Paket / Kupon</label>
+                    <input 
+                      type="text" 
+                      className="form-control rounded-3" 
+                      required
+                      value={tokenPkgName}
+                      onChange={(e) => setTokenPkgName(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold">Total Kuota Cek (x)</label>
+                    <input 
+                      type="number" 
+                      className="form-control rounded-3" 
+                      min="1"
+                      required
+                      value={tokenQuota}
+                      onChange={(e) => setTokenQuota(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="form-label small fw-semibold">No. WA Penerima (Kirim via WA Opsional)</label>
+                    <input 
+                      type="tel" 
+                      className="form-control rounded-3" 
+                      placeholder="Contoh: 081234567890"
+                      value={tokenWa}
+                      onChange={(e) => setTokenWa(e.target.value)}
+                    />
+                  </div>
+
+                  <button 
+                    type="submit" 
+                    className="btn btn-mint-primary w-100 rounded-pill py-2 fw-bold"
+                    disabled={tokenGenerating}
+                  >
+                    {tokenGenerating ? 'Menerbitkan...' : 'Terbitkan Token Paket 🎟️'}
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <div className="col-12 col-md-7">
+              <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div className="table-responsive">
+                  <table className="table table-hover align-middle mb-0">
+                    <thead className="bg-light small text-secondary">
+                      <tr>
+                        <th className="ps-4">KODE TOKEN</th>
+                        <th>NAMA PAKET</th>
+                        <th>KUOTA (SISA / TOTAL)</th>
+                        <th>STATUS</th>
+                        <th className="text-end pe-4">AKSI ADMIN</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tokensList.length === 0 ? (
+                        <tr>
+                          <td colSpan="5" className="text-center py-5 text-muted">
+                            Belum ada token / kupon diterbitkan.
+                          </td>
+                        </tr>
+                      ) : (
+                        tokensList.map(t => (
+                          <tr key={t.token_code}>
+                            <td className="ps-4 font-monospace fw-bold text-mint-heading">{t.token_code}</td>
+                            <td className="small fw-semibold">{t.package_name}</td>
+                            <td>
+                              <span className="badge bg-mint-light text-mint-heading font-monospace px-2 py-1">
+                                {t.quota_remaining} / {t.quota_total}x
+                              </span>
+                            </td>
+                            <td>
+                              <span className={`badge rounded-pill ${t.status === 'ACTIVE' ? 'bg-success' : 'bg-secondary'}`}>
+                                {t.status}
+                              </span>
+                            </td>
+                            <td className="text-end pe-4">
+                              <button 
+                                onClick={() => handleDeleteToken(t.token_code)}
+                                className="btn btn-sm btn-outline-danger rounded-pill px-3"
+                              >
+                                Batal / Hapus
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB USERS */}
       {activeTab === 'USERS' && (
         <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
           <div className="table-responsive">
@@ -372,9 +586,16 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
                       <td className="ps-4 fw-bold">{u.name}</td>
                       <td>{u.email}</td>
                       <td>
-                        <span className={`badge rounded-pill ${u.role === 'superadmin' ? 'bg-danger' : 'bg-secondary'}`}>
-                          {u.role || 'user'}
-                        </span>
+                        <select 
+                          className="form-select form-select-sm rounded-pill fw-semibold"
+                          style={{ width: '130px' }}
+                          value={u.role || 'user'}
+                          onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                        >
+                          <option value="user">user</option>
+                          <option value="admin">admin</option>
+                          <option value="superadmin">superadmin</option>
+                        </select>
                       </td>
                       <td>{u.whatsapp || '-'}</td>
                       <td>
@@ -386,16 +607,22 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
                       </td>
                       <td className="small text-muted">{new Date(u.created_at).toLocaleDateString('id-ID')}</td>
                       <td className="text-end pe-4">
-                        {u.is_verified === 0 ? (
+                        <div className="d-flex justify-content-end gap-1">
+                          {u.is_verified === 0 && (
+                            <button 
+                              onClick={() => handleVerifyUser(u.id, u.email)}
+                              className="btn btn-sm btn-success rounded-pill px-3 fw-semibold"
+                            >
+                              Aktivasi Akun
+                            </button>
+                          )}
                           <button 
-                            onClick={() => handleVerifyUser(u.id, u.email)}
-                            className="btn btn-sm btn-success rounded-pill px-3 fw-semibold"
+                            onClick={() => handleDeleteUser(u.id, u.email)}
+                            className="btn btn-sm btn-outline-danger rounded-pill px-3"
                           >
-                            <i className="ri-checkbox-circle-line me-1"></i> Aktivasi Akun
+                            Hapus
                           </button>
-                        ) : (
-                          <span className="small text-muted">Aktif</span>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   ))
