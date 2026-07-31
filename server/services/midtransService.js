@@ -1,9 +1,13 @@
 const midtransClient = require('midtrans-client');
 
-const merchantId = process.env.MIDTRANS_MERCHANT_ID || 'G159494348';
-const serverKey = process.env.MIDTRANS_SERVER_KEY || 'SB-Mid-server-WfiGS2ZDUkYivS7FBUPQPAMr';
-const clientKey = process.env.MIDTRANS_CLIENT_KEY || 'SB-Mid-client-6sGTeuzOa30cjfgw';
-const isProduction = process.env.MIDTRANS_IS_PRODUCTION === 'true';
+const merchantId = (process.env.MIDTRANS_MERCHANT_ID || 'G159494348').trim();
+const serverKey = (process.env.MIDTRANS_SERVER_KEY || 'SB-Mid-server-WfiGS2ZDUkYivS7FBUPQPAMr').trim();
+const clientKey = (process.env.MIDTRANS_CLIENT_KEY || 'SB-Mid-client-6sGTeuzOa30cjfgw').trim();
+
+// Auto-detect environment: Sandbox keys start with 'SB-', Production keys start with 'Mid-'
+const isProduction = serverKey.startsWith('SB-') ? false : (process.env.MIDTRANS_IS_PRODUCTION === 'true');
+
+console.log(`💳 [MIDTRANS INIT] Merchant ID: ${merchantId}, ServerKey: ${serverKey.slice(0, 10)}..., IsProduction: ${isProduction}`);
 
 const snap = new midtransClient.Snap({
   isProduction: isProduction,
@@ -12,15 +16,11 @@ const snap = new midtransClient.Snap({
 });
 
 /**
- * Creates Midtrans Transaction using dedicated unique transaction_id (e.g. TRX-849201-17849)
- * guarantees Midtrans receives a unique order_id on every single payment attempt.
- * 
- * THROWS an error if the Midtrans API call fails — caller must handle it.
+ * Creates Midtrans Transaction using dedicated unique transaction_id
  */
 async function createMidtransTransaction(order, transactionId) {
   const midtransOrderId = transactionId || `TRX-${Math.floor(100000 + Math.random() * 900000)}-${Date.now().toString().slice(-4)}`;
-  console.log(`💳 [MIDTRANS SERVICE] Initializing Snap Transaction for Transaction ID: ${midtransOrderId} (Order ID: ${order.id})`);
-  console.log(`💳 [MIDTRANS SERVICE] Amount: ${order.amount}, Service: ${order.serviceName}, IsProduction: ${isProduction}`);
+  console.log(`💳 [MIDTRANS SERVICE] Creating Snap Transaction: ${midtransOrderId} (Order ID: ${order.id}), Amount: ${order.amount}, IsProduction: ${isProduction}`);
 
   const safeAmount = Math.max(1, parseInt(order.amount) || 10000);
 
@@ -46,11 +46,6 @@ async function createMidtransTransaction(order, transactionId) {
     enabled_payments: ['gopay', 'qris', 'bank_transfer', 'shopeepay']
   };
 
-  if (!serverKey || serverKey.includes('YOUR_SERVER_KEY')) {
-    console.log(`⚠️ [MIDTRANS NOTICE] Server key not configured. Midtrans payment cannot be processed.`);
-    throw new Error('Midtrans server key belum dikonfigurasi. Hubungi admin.');
-  }
-
   try {
     const snapRes = await snap.createTransaction(parameter);
     console.log(`✅ [MIDTRANS SERVICE] Snap Token created successfully: ${snapRes.token.substring(0, 20)}...`);
@@ -58,13 +53,19 @@ async function createMidtransTransaction(order, transactionId) {
     return {
       midtransOrderId,
       snapToken: snapRes.token,
-      redirectUrl: snapRes.redirect_url
+      redirectUrl: snapRes.redirect_url,
+      error: null
     };
   } catch (error) {
     console.error(`❌ [MIDTRANS ERROR] Failed creating transaction for ${midtransOrderId}:`, error.message);
-    console.error(`❌ [MIDTRANS ERROR] Parameters:`, JSON.stringify(parameter, null, 2));
-    // Throw the error so the caller can handle it properly
-    throw new Error(`Midtrans payment error: ${error.message}`);
+    
+    // Return error info gracefully so order creation doesn't crash 500
+    return {
+      midtransOrderId,
+      snapToken: null,
+      redirectUrl: null,
+      error: error.message
+    };
   }
 }
 

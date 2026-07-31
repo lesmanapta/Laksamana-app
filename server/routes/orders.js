@@ -109,6 +109,9 @@ router.post('/buy-package', async (req, res) => {
     };
 
     const midtransRes = await createMidtransTransaction(orderForMidtrans, transactionId);
+    if (midtransRes.error) {
+      return res.status(400).json({ error: `Gagal memproses pembayaran Midtrans: ${midtransRes.error}. Pastikan Server Key & Client Key Midtrans di server/cPanel sudah sesuai (Sandbox / Production).` });
+    }
 
     // 3. Save transaction record linked to this token
     await db.query(`
@@ -268,6 +271,10 @@ router.post('/create', cpUpload, async (req, res) => {
 
   try {
     const midtransRes = await createMidtransTransaction(newOrder, transactionId);
+    if (!usedTokenCode && midtransRes.error) {
+      return res.status(400).json({ error: `Gagal menghubungkan ke Gateway Pembayaran Midtrans: ${midtransRes.error}. Silakan periksa konfigurasi MIDTRANS_SERVER_KEY (Sandbox / Production) di server.` });
+    }
+
     newOrder.snapToken = midtransRes.snapToken;
     newOrder.snapRedirectUrl = midtransRes.redirectUrl;
 
