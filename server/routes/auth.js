@@ -123,4 +123,39 @@ router.get('/me', async (req, res) => {
   }
 });
 
+// GET /api/auth/my-tokens - Fetch package token codes for logged in user
+router.get('/my-tokens', async (req, res) => {
+  const { email, whatsapp } = req.query;
+  const db = getPool();
+
+  let userEmail = email || '';
+  let userWa = whatsapp || '';
+
+  // Also check JWT token if provided
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+      if (decoded.email) userEmail = decoded.email;
+    } catch (e) {}
+  }
+
+  try {
+    const cleanWa = userWa.replace(/\D/g, '');
+    const waPattern = cleanWa.length > 5 ? `%${cleanWa.slice(-8)}%` : 'NONEXISTENT';
+
+    const [rows] = await db.query(`
+      SELECT * FROM package_tokens 
+      WHERE (user_email = ? AND user_email != '') 
+         OR (whatsapp = ? AND whatsapp != '') 
+         OR (whatsapp LIKE ? AND whatsapp != '')
+      ORDER BY created_at DESC
+    `, [userEmail, userWa, waPattern]);
+
+    res.json({ tokens: rows });
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal mengambil kode token: ' + err.message });
+  }
+});
+
 module.exports = router;

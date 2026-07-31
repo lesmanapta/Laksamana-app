@@ -7,6 +7,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import TutorialModal from './components/TutorialModal';
 import LoginModal from './components/LoginModal';
 import PackageCheckoutModal from './components/PackageCheckoutModal';
+import UserProfileModal from './components/UserProfileModal';
 
 export default function App() {
   const [activePage, setActivePage] = useState('home');
@@ -20,6 +21,7 @@ export default function App() {
   const [showTutorial, setShowTutorial] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [showPackageModal, setShowPackageModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   useEffect(() => {
     fetch('/api/services')
@@ -86,6 +88,7 @@ export default function App() {
           onOpenLogin={() => setShowLogin(true)}
           onOpenTutorial={() => setShowTutorial(true)}
           onLogout={handleLogout}
+          onOpenProfile={() => setShowProfileModal(true)}
         />
 
         <main>
@@ -151,6 +154,12 @@ export default function App() {
       <TutorialModal show={showTutorial} onClose={() => setShowTutorial(false)} />
       <LoginModal show={showLogin} onClose={() => setShowLogin(false)} onLoginSuccess={(usr) => setUser(usr)} />
       <PackageCheckoutModal show={showPackageModal} pkg={selectedPackage} onClose={() => setShowPackageModal(false)} />
+      <UserProfileModal 
+        show={showProfileModal} 
+        user={user} 
+        onClose={() => setShowProfileModal(false)} 
+        onUseToken={() => setActivePage('order')}
+      />
     </div>
   );
 }

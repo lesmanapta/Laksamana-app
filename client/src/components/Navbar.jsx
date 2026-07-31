@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function Navbar({ activePage, setActivePage, user, onOpenLogin, onOpenTutorial, onLogout }) {
+export default function Navbar({ activePage, setActivePage, user, onOpenLogin, onOpenTutorial, onLogout, onOpenProfile }) {
   const isSuperAdmin = user && (user.role === 'superadmin' || user.role === 'admin');
 
   const handleLogoutClick = () => {
@@ -94,10 +94,16 @@ export default function Navbar({ activePage, setActivePage, user, onOpenLogin, o
                   </button>
                   <ul className="dropdown-menu dropdown-menu-end shadow border-0 rounded-4 mt-2 p-2" style={{ minWidth: '220px' }}>
                     <li className="px-2 py-1"><span className="dropdown-item-text text-muted small p-0">{user.email}</span></li>
+                    <li><hr className="dropdown-divider my-1" /></li>
+                    <li>
+                      <button className="dropdown-item fw-semibold text-mint-heading rounded-3 py-2" onClick={onOpenProfile}>
+                        <i className="ri-coupon-3-line me-2 text-mint-primary fs-5"></i> Kode Token Saya
+                      </button>
+                    </li>
                     {isSuperAdmin && (
                       <li>
                         <button className="dropdown-item fw-semibold text-mint-primary rounded-3 py-2" onClick={() => setActivePage('admin')}>
-                          <i className="ri-dashboard-3-line me-2"></i> Panel Admin
+                          <i className="ri-dashboard-3-line me-2 fs-5"></i> Panel Admin
                         </button>
                       </li>
                     )}
