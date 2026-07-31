@@ -85,39 +85,24 @@ export default function Navbar({ activePage, setActivePage, user, onOpenLogin, o
           <div className="d-flex align-items-center gap-2">
             {user ? (
               <div className="d-flex align-items-center gap-2">
-                <div className="dropdown">
-                  <button 
-                    className="btn btn-sm btn-mint-outline rounded-pill px-4 py-2" 
-                    type="button" 
-                    data-bs-toggle="dropdown"
-                    aria-expanded="false"
-                  >
-                    <i className="ri-user-smile-line me-1"></i> {user.name} ({user.tokens || 0} Token)
-                  </button>
-                  <ul className="dropdown-menu dropdown-menu-end shadow border-0 rounded-4 mt-2 p-2" style={{ minWidth: '220px' }}>
-                    <li className="px-2 py-1"><span className="dropdown-item-text text-muted small p-0">{user.email}</span></li>
-                    <li><hr className="dropdown-divider my-1" /></li>
-                    <li>
-                      <button className="dropdown-item fw-semibold text-mint-heading rounded-3 py-2" onClick={onOpenProfile}>
-                        <i className="ri-coupon-3-line me-2 text-mint-primary fs-5"></i> Kode Token Saya
-                      </button>
-                    </li>
-                    <li><hr className="dropdown-divider my-1" /></li>
-                    <li>
-                      <button className="dropdown-item text-danger fw-semibold rounded-3 py-2" onClick={handleLogoutClick}>
-                        <i className="ri-logout-box-r-line me-2"></i> Keluar / Logout
-                      </button>
-                    </li>
-                  </ul>
-                </div>
+                {/* Profile Icon Button - Navigates to /profil */}
+                <button 
+                  title={`Profil (${user.name})`}
+                  onClick={() => navTo('profile')}
+                  className={`btn btn-sm rounded-circle p-2 d-flex align-items-center justify-content-center border-0 shadow-sm ${activePage === 'profile' ? 'bg-mint-primary text-white' : 'bg-mint-light text-mint-primary'}`}
+                  style={{ width: '40px', height: '40px' }}
+                >
+                  <i className="ri-user-3-line fs-5"></i>
+                </button>
 
+                {/* Logout Icon Button */}
                 <button 
                   title="Keluar / Logout"
                   onClick={handleLogoutClick}
                   className="btn btn-sm btn-outline-danger rounded-circle p-2 d-flex align-items-center justify-content-center"
-                  style={{ width: '36px', height: '36px' }}
+                  style={{ width: '40px', height: '40px' }}
                 >
-                  <i className="ri-logout-box-r-line fs-6"></i>
+                  <i className="ri-logout-box-r-line fs-5"></i>
                 </button>
               </div>
             ) : (

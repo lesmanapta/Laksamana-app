@@ -3,6 +3,7 @@ import Navbar from './components/Navbar';
 import HomePage from './pages/HomePage';
 import OrderPage from './pages/OrderPage';
 import TrackOrderPage from './pages/TrackOrderPage';
+import ProfilePage from './pages/ProfilePage';
 import AdminDashboard from './pages/AdminDashboard';
 import TutorialModal from './components/TutorialModal';
 import LoginModal from './components/LoginModal';
@@ -32,6 +33,8 @@ export default function App() {
       setActivePage('order');
     } else if (currentPath === '/track' || currentPath.startsWith('/track')) {
       setActivePage('track');
+    } else if (currentPath === '/profil' || currentPath.startsWith('/profil') || currentPath.startsWith('/profile')) {
+      setActivePage('profile');
     }
 
     const handlePopState = () => {
@@ -39,6 +42,7 @@ export default function App() {
       if (path === '/admin' || path.startsWith('/admin')) setActivePage('admin');
       else if (path === '/order' || path.startsWith('/order')) setActivePage('order');
       else if (path === '/track' || path.startsWith('/track')) setActivePage('track');
+      else if (path === '/profil' || path.startsWith('/profil') || path.startsWith('/profile')) setActivePage('profile');
       else setActivePage('home');
     };
 
@@ -74,6 +78,7 @@ export default function App() {
     if (pageName === 'admin') targetPath = '/admin';
     else if (pageName === 'order') targetPath = '/order';
     else if (pageName === 'track') targetPath = '/track';
+    else if (pageName === 'profile') targetPath = '/profil';
     if (window.location.pathname !== targetPath) {
       window.history.pushState({ page: pageName }, '', targetPath);
     }
@@ -97,7 +102,7 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem('accessToken');
     setUser(null);
-    setActivePage('home');
+    navigateToPage('home');
   };
 
   if (activePage === 'admin') {
@@ -120,7 +125,7 @@ export default function App() {
           onOpenLogin={() => setShowLogin(true)}
           onOpenTutorial={() => setShowTutorial(true)}
           onLogout={handleLogout}
-          onOpenProfile={() => setShowProfileModal(true)}
+          onOpenProfile={() => navigateToPage('profile')}
         />
 
         <main>
@@ -144,6 +149,14 @@ export default function App() {
 
           {activePage === 'track' && (
             <TrackOrderPage initialOrderId={trackOrderId} />
+          )}
+
+          {activePage === 'profile' && (
+            <ProfilePage 
+              user={user} 
+              onLogout={handleLogout} 
+              onNavigate={navigateToPage} 
+            />
           )}
         </main>
       </div>

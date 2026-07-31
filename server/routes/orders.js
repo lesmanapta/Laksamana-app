@@ -38,6 +38,47 @@ const cpUpload = upload.fields([
   { name: 'plagiarismReport', maxCount: 1 }
 ]);
 
+// GET /api/orders/my-orders - Fetch order history for logged in user
+router.get('/my-orders', async (req, res) => {
+  const { email, whatsapp } = req.query;
+  const db = getPool();
+
+  let userEmail = (email || '').trim().toLowerCase();
+  let userWa = (whatsapp || '').trim();
+
+  try {
+    const cleanWa = userWa.replace(/\D/g, '');
+    const waPattern = cleanWa.length > 4 ? `%${cleanWa.slice(-8)}%` : 'NONEXISTENT';
+
+    const [rows] = await db.query(`
+      SELECT o.*, s.title as serviceName 
+      FROM orders o 
+      LEFT JOIN services s ON o.service_id = s.id 
+      WHERE (LOWER(o.email) = ? AND o.email != '') 
+         OR (o.whatsapp = ? AND o.whatsapp != '') 
+         OR (o.whatsapp LIKE ? AND o.whatsapp != '')
+      ORDER BY o.created_at DESC
+    `, [userEmail, userWa, waPattern]);
+
+    const formatted = rows.map(r => ({
+      id: r.id,
+      serviceName: r.serviceName || r.service_id,
+      fileName: r.file_name,
+      status: r.status,
+      totalPrice: r.total_price,
+      similarityIndex: r.similarity_index,
+      aiScore: r.ai_score,
+      reportDownloadUrl: r.report_download_url,
+      createdAt: r.created_at,
+      completedAt: r.completed_at
+    }));
+
+    res.json({ orders: formatted });
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal mengambil riwayat pesanan: ' + err.message });
+  }
+});
+
 // POST /api/orders/validate-token - Validate Token Code / Kupon Paket Laksamana
 router.post('/validate-token', async (req, res) => {
   const { tokenCode } = req.body;

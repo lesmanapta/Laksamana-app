@@ -168,4 +168,43 @@ router.get('/my-tokens', async (req, res) => {
   }
 });
 
+// POST /api/auth/change-password
+router.post('/change-password', async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Silakan login terlebih dahulu' });
+  }
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Password lama dan password baru wajib diisi' });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'Password baru minimal 6 karakter' });
+  }
+
+  try {
+    const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+    const db = getPool();
+    const [users] = await db.query('SELECT * FROM users WHERE id = ?', [decoded.id]);
+
+    if (users.length === 0) return res.status(404).json({ error: 'Pengguna tidak ditemukan' });
+
+    const user = users[0];
+    const isValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isValid) {
+      return res.status(400).json({ error: 'Password lama Anda tidak sesuai' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const newHashed = await bcrypt.hash(newPassword, salt);
+    await db.query('UPDATE users SET password = ? WHERE id = ?', [newHashed, user.id]);
+
+    res.json({ message: 'Password berhasil diperbarui!' });
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal mengubah password: ' + err.message });
+  }
+});
+
 module.exports = router;
