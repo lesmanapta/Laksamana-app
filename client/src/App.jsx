@@ -70,6 +70,12 @@ export default function App() {
     setActivePage('track');
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('accessToken');
+    setUser(null);
+    setActivePage('home');
+  };
+
   return (
     <div className="min-vh-100 d-flex flex-column justify-content-between">
       <div>
@@ -79,6 +85,7 @@ export default function App() {
           user={user}
           onOpenLogin={() => setShowLogin(true)}
           onOpenTutorial={() => setShowTutorial(true)}
+          onLogout={handleLogout}
         />
 
         <main>

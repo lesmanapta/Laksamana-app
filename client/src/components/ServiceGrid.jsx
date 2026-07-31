@@ -46,8 +46,24 @@ export default function ServiceGrid({ services, onSelectService }) {
         </div>
       )}
 
+      {/* Sorted Services: Active ones first, Cek Plagiasi top-left */}
       <div className="row g-4 justify-content-center">
-        {services.map((srv) => {
+        {[...services].sort((a, b) => {
+          const aActive = a.active !== false && a.active !== 0 ? 1 : 0;
+          const bActive = b.active !== false && b.active !== 0 ? 1 : 0;
+          if (aActive !== bActive) return bActive - aActive;
+
+          const priority = {
+            'cek-plagiasi': 1,
+            'cek-drillbit': 2,
+            'parafrase': 3,
+            'gptzero': 4,
+            'humanizer': 5
+          };
+          const aPrio = priority[a.slug || a.id] || 99;
+          const bPrio = priority[b.slug || b.id] || 99;
+          return aPrio - bPrio;
+        }).map((srv) => {
           const isDisabled = srv.active === false;
 
           return (

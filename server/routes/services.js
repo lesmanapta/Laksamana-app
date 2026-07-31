@@ -23,7 +23,18 @@ const tutorialsList = [
 router.get('/', async (req, res) => {
   try {
     const db = getPool();
-    const [rows] = await db.query('SELECT * FROM services ORDER BY created_at ASC');
+    const [rows] = await db.query(`
+      SELECT * FROM services 
+      ORDER BY active DESC, 
+      CASE id 
+        WHEN 'cek-plagiasi' THEN 1 
+        WHEN 'cek-drillbit' THEN 2 
+        WHEN 'parafrase' THEN 3 
+        WHEN 'gptzero' THEN 4 
+        WHEN 'humanizer' THEN 5 
+        ELSE 6 
+      END ASC
+    `);
     const formatted = rows.map(r => ({
       id: r.id,
       slug: r.slug,

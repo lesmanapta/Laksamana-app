@@ -1,7 +1,16 @@
 import React from 'react';
 
-export default function Navbar({ activePage, setActivePage, user, onOpenLogin, onOpenTutorial }) {
+export default function Navbar({ activePage, setActivePage, user, onOpenLogin, onOpenTutorial, onLogout }) {
   const isSuperAdmin = user && (user.role === 'superadmin' || user.role === 'admin');
+
+  const handleLogoutClick = () => {
+    if (onLogout) {
+      onLogout();
+    } else {
+      localStorage.removeItem('accessToken');
+      window.location.reload();
+    }
+  };
 
   return (
     <nav className="navbar navbar-expand-lg navbar-custom sticky-top">
@@ -73,30 +82,42 @@ export default function Navbar({ activePage, setActivePage, user, onOpenLogin, o
 
           <div className="d-flex align-items-center gap-2">
             {user ? (
-              <div className="dropdown">
-                <button 
-                  className={`btn btn-sm dropdown-toggle rounded-pill px-4 py-2 ${isSuperAdmin ? 'bg-mint-dark text-white fw-bold' : 'btn-mint-outline'}`} 
-                  type="button" 
-                  data-bs-toggle="dropdown"
-                >
-                  <i className="ri-user-smile-line me-1"></i> {user.name} {isSuperAdmin ? '(Super Admin)' : `(${user.tokens || 0} Token)`}
-                </button>
-                <ul className="dropdown-menu dropdown-menu-end shadow border-0 rounded-4 mt-2">
-                  <li><span className="dropdown-item-text text-muted small">{user.email}</span></li>
-                  {isSuperAdmin && (
+              <div className="d-flex align-items-center gap-2">
+                <div className="dropdown">
+                  <button 
+                    className={`btn btn-sm dropdown-toggle rounded-pill px-4 py-2 ${isSuperAdmin ? 'bg-mint-dark text-white fw-bold' : 'btn-mint-outline'}`} 
+                    type="button" 
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false"
+                  >
+                    <i className="ri-user-smile-line me-1"></i> {user.name} {isSuperAdmin ? '(Super Admin)' : `(${user.tokens || 0} Token)`}
+                  </button>
+                  <ul className="dropdown-menu dropdown-menu-end shadow border-0 rounded-4 mt-2 p-2" style={{ minWidth: '220px' }}>
+                    <li className="px-2 py-1"><span className="dropdown-item-text text-muted small p-0">{user.email}</span></li>
+                    {isSuperAdmin && (
+                      <li>
+                        <button className="dropdown-item fw-semibold text-mint-primary rounded-3 py-2" onClick={() => setActivePage('admin')}>
+                          <i className="ri-dashboard-3-line me-2"></i> Panel Admin
+                        </button>
+                      </li>
+                    )}
+                    <li><hr className="dropdown-divider my-1" /></li>
                     <li>
-                      <button className="dropdown-item fw-semibold text-mint-primary" onClick={() => setActivePage('admin')}>
-                        <i className="ri-dashboard-3-line me-1"></i> Panel Admin
+                      <button className="dropdown-item text-danger fw-semibold rounded-3 py-2" onClick={handleLogoutClick}>
+                        <i className="ri-logout-box-r-line me-2"></i> Keluar / Logout
                       </button>
                     </li>
-                  )}
-                  <li><hr className="dropdown-divider" /></li>
-                  <li>
-                    <button className="dropdown-item text-danger" onClick={() => { localStorage.removeItem('accessToken'); window.location.reload(); }}>
-                      <i className="ri-logout-box-r-line me-1"></i> Logout
-                    </button>
-                  </li>
-                </ul>
+                  </ul>
+                </div>
+
+                <button 
+                  title="Keluar / Logout"
+                  onClick={handleLogoutClick}
+                  className="btn btn-sm btn-outline-danger rounded-circle p-2 d-flex align-items-center justify-content-center"
+                  style={{ width: '36px', height: '36px' }}
+                >
+                  <i className="ri-logout-box-r-line fs-6"></i>
+                </button>
               </div>
             ) : (
               <button 
