@@ -339,8 +339,9 @@ router.post('/create', cpUpload, async (req, res) => {
               WHERE id = ?
             `, [dblRes.similarityIndex, dblRes.wordCount, dblRes.reportDownloadUrl, orderId]);
 
-            const fullDownloadUrl = `http://localhost:5000${dblRes.reportDownloadUrl}`;
-            const reportWaText = `📊 *HASIL CEK DRILLBIT LAKSAMANA SELESAI* 🎉\n\nHalo, pemeriksaan plagiasi Drillbit untuk dokumen *${fileName}* telah selesai dikerjakan!\n\n📋 *Ringkasan Drillbit Per-Kata:*\n• Kode Order : *${orderId}*\n• Total Kata : *${dblRes.wordCount.toLocaleString('id-ID')} kata*\n• Similarity Index : *${dblRes.similarityIndex}%*\n\n📄 *File laporan resmi Drillbit telah dilampirkan langsung pada pesan WhatsApp ini!*`;
+            const domainUrl = process.env.APP_URL || 'https://laksamana.biz.id';
+            const fullDownloadUrl = `${domainUrl}/api/orders/download/${orderId}`;
+            const reportWaText = `📊 *HASIL CEK DRILLBIT LAKSAMANA SELESAI* 🎉\n\nHalo, pemeriksaan plagiasi Drillbit untuk dokumen *${fileName}* telah selesai dikerjakan!\n\n📋 *Ringkasan Drillbit Per-Kata:*\n• Kode Order : *${orderId}*\n• Total Kata : *${dblRes.wordCount.toLocaleString('id-ID')} kata*\n• Similarity Index : *${dblRes.similarityIndex}%*\n\n📄 *Klik tautan di bawah ini untuk langsung mengunduh PDF Laporan Resmi:* \n${fullDownloadUrl}`;
             sendWhatsAppMessage(whatsapp, reportWaText, fullDownloadUrl);
           } else if (targetSlug === 'cek-plagiasi') {
             console.log(`🚀 [BACKGROUND WORKER] Triggering automated Turnitin check for ${orderId}...`);
@@ -353,7 +354,8 @@ router.post('/create', cpUpload, async (req, res) => {
                 WHERE id = ?
               `, [trnRes.similarityIndex, trnRes.aiScore, orderId]);
 
-              const fullDownloadUrl = `http://localhost:5000${reportDownloadUrl}`;
+              const domainUrl = process.env.APP_URL || 'https://laksamana.biz.id';
+              const fullDownloadUrl = `${domainUrl}/api/orders/download/${orderId}`;
               sendWhatsAppMessage(whatsapp, getReportCompletedWATemplate(newOrder, fullDownloadUrl), fullDownloadUrl);
             } else {
               console.log(`⏳ [PROCESSING] Order ${orderId} is in PROCESSING state. Waiting for Admin PDF upload.`);
@@ -415,8 +417,9 @@ router.post('/confirm-payment', async (req, res) => {
             WHERE id = ?
           `, [dblRes.similarityIndex, dblRes.wordCount, dblRes.reportDownloadUrl, order.id]);
 
-          const fullDownloadUrl = `http://localhost:5000${dblRes.reportDownloadUrl}`;
-          const reportWaText = `📊 *HASIL CEK DRILLBIT LAKSAMANA SELESAI* 🎉\n\nHalo, pemeriksaan plagiasi Drillbit untuk dokumen *${order.file_name}* telah selesai dikerjakan!\n\n📋 *Ringkasan Drillbit Per-Kata:*\n• Kode Order : *${order.id}*\n• Total Kata : *${dblRes.wordCount.toLocaleString('id-ID')} kata*\n• Similarity Index : *${dblRes.similarityIndex}%*\n\n📄 *File laporan resmi Drillbit telah dilampirkan langsung pada pesan WhatsApp ini!*`;
+          const domainUrl = process.env.APP_URL || 'https://laksamana.biz.id';
+          const fullDownloadUrl = `${domainUrl}/api/orders/download/${order.id}`;
+          const reportWaText = `📊 *HASIL CEK DRILLBIT LAKSAMANA SELESAI* 🎉\n\nHalo, pemeriksaan plagiasi Drillbit untuk dokumen *${order.file_name}* telah selesai dikerjakan!\n\n📋 *Ringkasan Drillbit Per-Kata:*\n• Kode Order : *${order.id}*\n• Total Kata : *${dblRes.wordCount.toLocaleString('id-ID')} kata*\n• Similarity Index : *${dblRes.similarityIndex}%*\n\n📄 *Klik tautan di bawah ini untuk langsung mengunduh PDF Laporan Resmi:* \n${fullDownloadUrl}`;
           sendWhatsAppMessage(order.whatsapp, reportWaText, fullDownloadUrl);
         } else {
           console.log(`🚀 [CONFIRM PAYMENT] Running Turnitin check for ${orderId}...`);
@@ -428,7 +431,8 @@ router.post('/confirm-payment', async (req, res) => {
               WHERE id = ?
             `, [trnRes.similarityIndex, trnRes.aiScore, order.id]);
 
-            const fullDownloadUrl = `http://localhost:5000${order.report_download_url}`;
+            const domainUrl = process.env.APP_URL || 'https://laksamana.biz.id';
+            const fullDownloadUrl = `${domainUrl}/api/orders/download/${order.id}`;
             sendWhatsAppMessage(order.whatsapp, getReportCompletedWATemplate(order, fullDownloadUrl), fullDownloadUrl);
           } else {
             console.log(`⏳ [CONFIRM PAYMENT] Order ${orderId} status set to PROCESSING. Waiting for Admin PDF upload.`);
@@ -502,8 +506,9 @@ router.post('/midtrans-webhook', async (req, res) => {
           WHERE id = ?
         `, [dblRes.similarityIndex, dblRes.wordCount, dblRes.reportDownloadUrl, order.id]);
         
-        const fullDownloadUrl = `http://localhost:5000${dblRes.reportDownloadUrl}`;
-        const reportWaText = `📊 *HASIL CEK DRILLBIT LAKSAMANA SELESAI* 🎉\n\nHalo, pemeriksaan plagiasi Drillbit untuk dokumen *${order.file_name}* telah selesai dikerjakan!\n\n📋 *Ringkasan Drillbit Per-Kata:*\n• Kode Order : *${order.id}*\n• Total Kata : *${dblRes.wordCount.toLocaleString('id-ID')} kata*\n• Similarity Index : *${dblRes.similarityIndex}%*\n\n📄 *File laporan resmi Drillbit telah dilampirkan langsung pada pesan WhatsApp ini!*`;
+        const domainUrl = process.env.APP_URL || 'https://laksamana.biz.id';
+        const fullDownloadUrl = `${domainUrl}/api/orders/download/${order.id}`;
+        const reportWaText = `📊 *HASIL CEK DRILLBIT LAKSAMANA SELESAI* 🎉\n\nHalo, pemeriksaan plagiasi Drillbit untuk dokumen *${order.file_name}* telah selesai dikerjakan!\n\n📋 *Ringkasan Drillbit Per-Kata:*\n• Kode Order : *${order.id}*\n• Total Kata : *${dblRes.wordCount.toLocaleString('id-ID')} kata*\n• Similarity Index : *${dblRes.similarityIndex}%*\n\n📄 *Klik tautan di bawah ini untuk langsung mengunduh PDF Laporan Resmi:* \n${fullDownloadUrl}`;
         sendWhatsAppMessage(order.whatsapp, reportWaText, fullDownloadUrl);
       } else if (order.service_slug === 'cek-plagiasi') {
         const trnRes = await runTurnitinWorker(order.file_path, order.file_name, order.id, filterOpts);
@@ -514,7 +519,8 @@ router.post('/midtrans-webhook', async (req, res) => {
             WHERE id = ?
           `, [trnRes.similarityIndex, trnRes.aiScore, order.id]);
 
-          const fullDownloadUrl = `http://localhost:5000${order.report_download_url}`;
+          const domainUrl = process.env.APP_URL || 'https://laksamana.biz.id';
+          const fullDownloadUrl = `${domainUrl}/api/orders/download/${order.id}`;
           sendWhatsAppMessage(order.whatsapp, getReportCompletedWATemplate(order, fullDownloadUrl), fullDownloadUrl);
         } else {
           console.log(`⏳ [WEBHOOK] Order ${order.id} set to PROCESSING (paid, awaiting Admin PDF upload).`);

@@ -93,14 +93,23 @@ router.post('/orders/:id/complete', upload.single('revisedDocument'), async (req
       WHERE id = ?
     `, [newSimScore, newAIScore, reportDownloadUrl, adminNotes || 'Parafrase selesai dikerjakan.', id]);
 
-    const downloadUrl = `http://localhost:5000${reportDownloadUrl}`;
-    const waText = `*LAKSAMANA.ID - JASA PARAFRASE SELESAI* 🎉\n\nHalo, pengerjaan parafrase dokumen kamu (*${order.file_name}*) telah selesai dikerjakan oleh Tim Laksamana!\n\n📊 *Hasil Akhir:*\n• Kode Order : *${order.id}*\n• Turnitin Similarity : *${newSimScore}%*\n• AI Score : *${newAIScore}%*\n\n📄 *File hasil parafrase yang sudah lolos Turnitin telah dilampirkan langsung pada pesan ini!*`;
+    const host = req.get('host');
+    const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
+    const domainUrl = process.env.APP_URL || `${protocol}://${host}`;
 
-    await sendWhatsAppMessage(order.whatsapp, waText, downloadUrl);
+    // Direct Auto-Download URL on website
+    const directDownloadLink = `${domainUrl}/api/orders/download/${order.id}`;
+
+    // Public Media Attachment URL for Fonnte WA Gateway
+    const mediaAttachmentUrl = file ? `${domainUrl}${reportDownloadUrl}` : directDownloadLink;
+
+    const waText = `*LAKSAMANA.ID - LAPORAN HASIL SELESAI* 🎉\n\nHalo, pengerjaan dokumen kamu (*${order.file_name}*) telah selesai dikerjakan!\n\n📊 *Hasil Akhir:*\n• Kode Order : *${order.id}*\n• Turnitin Similarity : *${newSimScore}%*\n• AI Content Score : *${newAIScore}%*\n\n📄 *Klik tautan di bawah ini untuk langsung mengunduh PDF Laporan Resmi:* \n${directDownloadLink}\n\nTerima kasih telah menggunakan layanan Laksamana!`;
+
+    await sendWhatsAppMessage(order.whatsapp, waText, mediaAttachmentUrl);
 
     res.json({
-      message: `Pesanan ${id} berhasil diselesaikan di MySQL & file dikirimkan ke WhatsApp customer!`,
-      order: { ...order, status: 'COMPLETED', similarityIndex: newSimScore, aiScore: newAIScore, completedAt: new Date().toISOString() }
+      message: `Pesanan ${id} berhasil diselesaikan & laporan PDF dikirimkan ke WhatsApp customer!`,
+      order: { ...order, status: 'COMPLETED', similarityIndex: newSimScore, aiScore: newAIScore, completedAt: new Date().toISOString(), reportDownloadUrl }
     });
   } catch (err) {
     res.status(500).json({ error: 'Gagal mengupdate pesanan: ' + err.message });
