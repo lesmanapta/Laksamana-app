@@ -24,27 +24,36 @@ export default function App() {
   const [showProfileModal, setShowProfileModal] = useState(false);
 
   useEffect(() => {
+    // Initial URL path detection
+    const currentPath = window.location.pathname.toLowerCase();
+    if (currentPath === '/admin' || currentPath.startsWith('/admin')) {
+      setActivePage('admin');
+    } else if (currentPath === '/order' || currentPath.startsWith('/order')) {
+      setActivePage('order');
+    } else if (currentPath === '/track' || currentPath.startsWith('/track')) {
+      setActivePage('track');
+    }
+
+    const handlePopState = () => {
+      const path = window.location.pathname.toLowerCase();
+      if (path === '/admin' || path.startsWith('/admin')) setActivePage('admin');
+      else if (path === '/order' || path.startsWith('/order')) setActivePage('order');
+      else if (path === '/track' || path.startsWith('/track')) setActivePage('track');
+      else setActivePage('home');
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    // Fetch initial data
     fetch('/api/services')
       .then(res => res.json())
       .then(data => setServices(data))
-      .catch(() => {
-        setServices([
-          { id: 'cek-plagiasi', slug: 'cek-plagiasi', title: 'Cek Plagiasi No-Repository', subtitle: 'Deteksi plagiarisme dokumen', icon: 'ri-file-line', price: 10000, unit: 'file', description: 'Pengecekan keaslian tulisan cepat 24 jam tanpa simpan Turnitin repo.' },
-          { id: 'cek-drillbit', slug: 'cek-drillbit', title: 'Cek Drillbit', subtitle: 'Cek plagiarisme dengan Drillbit', icon: 'ri-file-search-line', price: 12000, unit: 'file', description: 'Pemeriksaan plagiasi terpercaya khusus jurnal & skripsi.' },
-          { id: 'parafrase', slug: 'parafrase', title: 'Jasa Parafrase', subtitle: 'Ubah teks tanpa plagiarisme', icon: 'ri-loop-left-line', price: 35000, unit: 'halaman', description: 'Menurunkan skor Turnitin secara profesional.' }
-        ]);
-      });
+      .catch(() => {});
 
     fetch('/api/services/packages')
       .then(res => res.json())
       .then(data => setPackages(data))
-      .catch(() => {
-        setPackages([
-          { id: 'pkg_hemat_3x', name: 'Paket Hemat Laksamana (3x Cek)', validity: '7 hari', price: 27500, targetAudience: 'Tugas kuliah & revisi cepat', quota: '3x cek plagiasi', benefits: ['Skip menu pembayaran', 'Cek sampai 800 halaman/file', 'Dapet token 3x'] },
-          { id: 'pkg_praktis_10x', name: 'Paket Praktis Laksamana (10x Cek)', validity: '14 hari', price: 89500, targetAudience: 'Deadliners skripsi & revisian', quota: '10x cek plagiasi', benefits: ['Skip menu pembayaran', 'Cek sampai 800 halaman/file', 'Dapet token 10x'] },
-          { id: 'pkg_pro_25x', name: 'Paket Sultan Laksamana (25x Cek)', validity: '30 hari', price: 199000, targetAudience: 'Bimbingan skripsi kelompok', quota: '25x cek plagiasi', benefits: ['Prioritas Instant', 'Laporan PDF Lengkap', 'Dapet token 25x'] }
-        ]);
-      });
+      .catch(() => {});
 
     const token = localStorage.getItem('accessToken');
     if (token) {
@@ -55,7 +64,20 @@ export default function App() {
         .then(data => { if (data.user) setUser(data.user); })
         .catch(() => localStorage.removeItem('accessToken'));
     }
+
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  const navigateToPage = (pageName) => {
+    setActivePage(pageName);
+    let targetPath = '/';
+    if (pageName === 'admin') targetPath = '/admin';
+    else if (pageName === 'order') targetPath = '/order';
+    else if (pageName === 'track') targetPath = '/track';
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState({ page: pageName }, '', targetPath);
+    }
+  };
 
   const handleSelectService = (service) => {
     setSelectedService(service);

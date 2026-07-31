@@ -3,6 +3,17 @@ import React from 'react';
 export default function Navbar({ activePage, setActivePage, user, onOpenLogin, onOpenTutorial, onLogout, onOpenProfile }) {
   const isSuperAdmin = user && (user.role === 'superadmin' || user.role === 'admin');
 
+  const navTo = (pageName) => {
+    setActivePage(pageName);
+    let targetPath = '/';
+    if (pageName === 'admin') targetPath = '/admin';
+    else if (pageName === 'order') targetPath = '/order';
+    else if (pageName === 'track') targetPath = '/track';
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState({ page: pageName }, '', targetPath);
+    }
+  };
+
   const handleLogoutClick = () => {
     if (onLogout) {
       onLogout();
@@ -17,7 +28,7 @@ export default function Navbar({ activePage, setActivePage, user, onOpenLogin, o
       <div className="container">
         <a 
           href="#home" 
-          onClick={(e) => { e.preventDefault(); setActivePage('home'); }} 
+          onClick={(e) => { e.preventDefault(); navTo('home'); }} 
           className="navbar-brand d-flex align-items-center gap-2 text-decoration-none"
         >
           <div className="bg-mint-primary text-white rounded-4 px-3 py-1 fs-5 fw-bold shadow-sm">
@@ -40,7 +51,7 @@ export default function Navbar({ activePage, setActivePage, user, onOpenLogin, o
             <li className="nav-item">
               <button 
                 className={`nav-link border-0 bg-transparent rounded-pill px-3 ${activePage === 'home' ? 'fw-bold text-mint-primary bg-mint-light' : 'text-secondary'}`}
-                onClick={() => setActivePage('home')}
+                onClick={() => navTo('home')}
               >
                 Beranda
               </button>
@@ -48,7 +59,7 @@ export default function Navbar({ activePage, setActivePage, user, onOpenLogin, o
             <li className="nav-item">
               <button 
                 className={`nav-link border-0 bg-transparent rounded-pill px-3 ${activePage === 'order' ? 'fw-bold text-mint-primary bg-mint-light' : 'text-secondary'}`}
-                onClick={() => setActivePage('order')}
+                onClick={() => navTo('order')}
               >
                 Order Cek
               </button>
@@ -56,7 +67,7 @@ export default function Navbar({ activePage, setActivePage, user, onOpenLogin, o
             <li className="nav-item">
               <button 
                 className={`nav-link border-0 bg-transparent rounded-pill px-3 ${activePage === 'track' ? 'fw-bold text-mint-primary bg-mint-light' : 'text-secondary'}`}
-                onClick={() => setActivePage('track')}
+                onClick={() => navTo('track')}
               >
                 <i className="ri-search-line me-1"></i> Cek Pesanan
               </button>
@@ -73,7 +84,7 @@ export default function Navbar({ activePage, setActivePage, user, onOpenLogin, o
             <li className="nav-item">
               <button 
                 className={`nav-link border-0 bg-transparent rounded-pill px-3 ${isSuperAdmin ? 'text-mint-heading fw-bold' : 'text-muted'} ${activePage === 'admin' ? 'fw-bold text-mint-primary bg-mint-light' : ''}`}
-                onClick={() => setActivePage('admin')}
+                onClick={() => navTo('admin')}
               >
                 <i className="ri-shield-user-line me-1"></i> Admin {isSuperAdmin && '👑'}
               </button>

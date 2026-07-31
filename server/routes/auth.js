@@ -128,30 +128,40 @@ router.get('/my-tokens', async (req, res) => {
   const { email, whatsapp } = req.query;
   const db = getPool();
 
-  let userEmail = email || '';
-  let userWa = whatsapp || '';
+  let userEmail = (email || '').trim().toLowerCase();
+  let userWa = (whatsapp || '').trim();
+  let isSuperAdmin = false;
 
   // Also check JWT token if provided
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     try {
       const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
-      if (decoded.email) userEmail = decoded.email;
+      if (decoded.email) userEmail = decoded.email.trim().toLowerCase();
+      if (decoded.role === 'superadmin' || decoded.role === 'admin') isSuperAdmin = true;
     } catch (e) {}
   }
 
   try {
     const cleanWa = userWa.replace(/\D/g, '');
-    const waPattern = cleanWa.length > 5 ? `%${cleanWa.slice(-8)}%` : 'NONEXISTENT';
+    const waPattern = cleanWa.length > 4 ? `%${cleanWa.slice(-8)}%` : 'NONEXISTENT';
 
-    const [rows] = await db.query(`
+    let query = `
       SELECT * FROM package_tokens 
-      WHERE (user_email = ? AND user_email != '') 
+      WHERE (LOWER(user_email) = ? AND user_email != '') 
          OR (whatsapp = ? AND whatsapp != '') 
          OR (whatsapp LIKE ? AND whatsapp != '')
       ORDER BY created_at DESC
-    `, [userEmail, userWa, waPattern]);
+    `;
+    let params = [userEmail, userWa, waPattern];
 
+    // If Super Admin, return all package tokens in database so Admin can manage/view all tokens
+    if (isSuperAdmin || userEmail === 'lesmana.pta@gmail.com') {
+      query = `SELECT * FROM package_tokens ORDER BY created_at DESC`;
+      params = [];
+    }
+
+    const [rows] = await db.query(query, params);
     res.json({ tokens: rows });
   } catch (err) {
     res.status(500).json({ error: 'Gagal mengambil kode token: ' + err.message });
