@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-export default function AdminDashboard({ user, onLoginSuccess }) {
+export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome }) {
   const [orders, setOrders] = useState([]);
   const [servicesList, setServicesList] = useState([]);
   const [packagesList, setPackagesList] = useState([]);
@@ -400,119 +400,272 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
 
   if (!isSuperAdmin) {
     return (
-      <div className="container my-5">
-        <div className="row justify-content-center">
-          <div className="col-12 col-md-5">
-            <div className="card border-0 shadow-lg rounded-4 p-4 text-center">
-              <div className="bg-custom-purple text-white icon-box-shape mx-auto mb-3">
-                <i className="ri-shield-user-line fs-2"></i>
-              </div>
-              <h4 className="fw-bold mb-1">Login Super Admin</h4>
-              <p className="small text-muted mb-4">Masuk untuk mengelola seluruh produk, pesanan & akun Laksamana</p>
-
-              {loginError && <div className="alert alert-danger small py-2">{loginError}</div>}
-
-              <form onSubmit={handleAdminLogin}>
-                <div className="mb-3 text-start">
-                  <label className="form-label small fw-semibold">Email Super Admin</label>
-                  <input 
-                    type="email" 
-                    className="form-control rounded-3" 
-                    required 
-                    value={adminEmail}
-                    onChange={(e) => setAdminEmail(e.target.value)}
-                  />
-                </div>
-
-                <div className="mb-4 text-start">
-                  <label className="form-label small fw-semibold">Password Super Admin</label>
-                  <input 
-                    type="password" 
-                    className="form-control rounded-3" 
-                    placeholder="Masukkan password super admin"
-                    required 
-                    value={adminPassword}
-                    onChange={(e) => setAdminPassword(e.target.value)}
-                  />
-                </div>
-
-                <button 
-                  type="submit" 
-                  className="btn btn-custom-purple w-100 rounded-pill py-2 fw-semibold"
-                  disabled={loginLoading}
-                >
-                  {loginLoading ? 'Memverifikasi...' : 'Masuk Dashboard Admin 👑'}
-                </button>
-              </form>
-
-              <div className="bg-light p-3 rounded-3 mt-4 text-start small">
-                <div className="fw-bold text-dark mb-1">💡 Kredensial Super Admin Default:</div>
-                <div className="text-secondary">Email: <code>Lesmana.pta@gmail.com</code></div>
-                <div className="text-secondary">Password: <code>Manto1909@</code></div>
-              </div>
+      <div className="min-vh-100 d-flex align-items-center justify-content-center p-3" style={{ background: '#0f172a', color: '#f8fafc' }}>
+        <div className="card border-0 shadow-lg rounded-4 overflow-hidden" style={{ maxWidth: '440px', width: '100%', background: '#1e293b', border: '1px solid #334155' }}>
+          <div className="p-4 p-md-5 text-center">
+            <div className="d-inline-flex align-items-center justify-content-center bg-emerald-500 bg-opacity-20 text-emerald-400 p-3 rounded-circle mb-3" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399' }}>
+              <i className="ri-shield-keyhole-line fs-1"></i>
             </div>
+            <h4 className="fw-bold mb-1 text-white">Laksamana Administration</h4>
+            <p className="small text-slate-400 mb-4" style={{ color: '#94a3b8' }}>Masuk dengan kredensial Super Admin untuk mengelola sistem</p>
+
+            {loginError && <div className="alert alert-danger small py-2 rounded-3 mb-3">{loginError}</div>}
+
+            <form onSubmit={handleAdminLogin}>
+              <div className="mb-3 text-start">
+                <label className="form-label small fw-semibold text-slate-300" style={{ color: '#cbd5e1' }}>Email Super Admin</label>
+                <input 
+                  type="email" 
+                  className="form-control bg-slate-900 border-slate-700 text-white rounded-3 py-2.5" 
+                  style={{ background: '#0f172a', borderColor: '#334155', color: '#fff' }}
+                  required 
+                  value={adminEmail}
+                  onChange={(e) => setAdminEmail(e.target.value)}
+                />
+              </div>
+
+              <div className="mb-4 text-start">
+                <label className="form-label small fw-semibold text-slate-300" style={{ color: '#cbd5e1' }}>Password Super Admin</label>
+                <input 
+                  type="password" 
+                  className="form-control bg-slate-900 border-slate-700 text-white rounded-3 py-2.5" 
+                  style={{ background: '#0f172a', borderColor: '#334155', color: '#fff' }}
+                  placeholder="Password super admin"
+                  required 
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                className="btn btn-emerald w-100 rounded-3 py-2.5 fw-bold shadow"
+                style={{ background: '#059669', borderColor: '#059669', color: '#fff' }}
+                disabled={loginLoading}
+              >
+                {loginLoading ? 'Memverifikasi...' : '🔑 Masuk Control Panel'}
+              </button>
+            </form>
+
+            <div className="p-3 rounded-3 mt-4 text-start small border border-slate-700" style={{ background: '#0f172a', borderColor: '#334155' }}>
+              <div className="fw-bold mb-1" style={{ color: '#34d399' }}>💡 Super Admin Default:</div>
+              <div className="font-monospace text-slate-300" style={{ color: '#cbd5e1' }}>Email: <code>Lesmana.pta@gmail.com</code></div>
+              <div className="font-monospace text-slate-300" style={{ color: '#cbd5e1' }}>Password: <code>Manto1909@</code></div>
+            </div>
+
+            {onNavigateHome && (
+              <button 
+                onClick={onNavigateHome}
+                className="btn btn-link text-slate-400 small mt-3 text-decoration-none"
+                style={{ color: '#94a3b8' }}
+              >
+                ← Kembali ke Website Utama
+              </button>
+            )}
           </div>
         </div>
       </div>
     );
   }
 
+  const totalRevenue = orders.reduce((acc, o) => acc + (o.totalPrice || 0), 0);
+  const pendingOrdersCount = orders.filter(o => o.status === 'PROCESSING' || o.status === 'PENDING_PAYMENT').length;
+
   return (
-    <div className="container my-5">
-      <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between mb-4 pb-3 border-bottom">
+    <div className="d-flex min-vh-100" style={{ background: '#f1f5f9', color: '#1e293b' }}>
+      
+      {/* SIDEBAR FILAMENT / ADMINLTE STYLE */}
+      <aside className="d-flex flex-column justify-content-between p-3 border-end" style={{ width: '270px', minWidth: '270px', background: '#0f172a', color: '#f8fafc' }}>
         <div>
-          <span className="badge bg-warning text-dark px-3 py-2 rounded-pill small mb-1 fw-bold">👑 Super Admin Logged In</span>
-          <h3 className="fw-bold mb-0">Dashboard Admin <span className="text-custom-orange">Laksamana</span></h3>
+          {/* Logo Header */}
+          <div className="d-flex align-items-center gap-2 px-2 py-3 mb-3 border-bottom border-slate-800" style={{ borderColor: '#1e293b' }}>
+            <div className="bg-emerald-500 text-white rounded-3 px-2.5 py-1 fw-bold fs-5 shadow-sm" style={{ background: '#059669' }}>
+              🌿
+            </div>
+            <div>
+              <h6 className="fw-extrabold mb-0 text-white" style={{ letterSpacing: '0.5px' }}>LAKSAMANA</h6>
+              <small className="badge bg-emerald-900 text-emerald-300 rounded-pill px-2" style={{ background: '#064e3b', color: '#6ee7b7', fontSize: '0.65rem' }}>
+                ADMIN CONTROL PANEL
+              </small>
+            </div>
+          </div>
+
+          {/* Navigation Menu Group */}
+          <div className="small fw-bold text-uppercase opacity-50 px-3 mb-2" style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+            PANEL KONTROL SISTEM
+          </div>
+
+          <nav className="nav flex-column gap-1">
+            <button 
+              className={`nav-link text-start rounded-3 px-3 py-2.5 border-0 d-flex align-items-center justify-content-between ${activeTab === 'ORDERS' ? 'fw-bold text-white' : 'text-slate-400'}`}
+              style={activeTab === 'ORDERS' ? { background: '#059669', color: '#fff' } : { color: '#cbd5e1', background: 'transparent' }}
+              onClick={() => setActiveTab('ORDERS')}
+            >
+              <span><i className="ri-file-list-3-line me-2 fs-5"></i> Pesanan Dokumen</span>
+              {pendingOrdersCount > 0 && (
+                <span className="badge rounded-pill bg-warning text-dark">{pendingOrdersCount}</span>
+              )}
+            </button>
+
+            <button 
+              className={`nav-link text-start rounded-3 px-3 py-2.5 border-0 d-flex align-items-center justify-content-between ${activeTab === 'SERVICES' ? 'fw-bold text-white' : 'text-slate-400'}`}
+              style={activeTab === 'SERVICES' ? { background: '#059669', color: '#fff' } : { color: '#cbd5e1', background: 'transparent' }}
+              onClick={() => setActiveTab('SERVICES')}
+            >
+              <span><i className="ri-tools-line me-2 fs-5"></i> Kelola Layanan</span>
+              <span className="badge rounded-pill bg-slate-700 text-slate-300" style={{ background: '#334155' }}>{servicesList.length}</span>
+            </button>
+
+            <button 
+              className={`nav-link text-start rounded-3 px-3 py-2.5 border-0 d-flex align-items-center justify-content-between ${activeTab === 'PACKAGES' ? 'fw-bold text-white' : 'text-slate-400'}`}
+              style={activeTab === 'PACKAGES' ? { background: '#059669', color: '#fff' } : { color: '#cbd5e1', background: 'transparent' }}
+              onClick={() => setActiveTab('PACKAGES')}
+            >
+              <span><i className="ri-box-3-line me-2 fs-5"></i> Kelola Paket Kuota</span>
+              <span className="badge rounded-pill bg-slate-700 text-slate-300" style={{ background: '#334155' }}>{packagesList.length}</span>
+            </button>
+
+            <button 
+              className={`nav-link text-start rounded-3 px-3 py-2.5 border-0 d-flex align-items-center justify-content-between ${activeTab === 'TOKENS' ? 'fw-bold text-white' : 'text-slate-400'}`}
+              style={activeTab === 'TOKENS' ? { background: '#059669', color: '#fff' } : { color: '#cbd5e1', background: 'transparent' }}
+              onClick={() => setActiveTab('TOKENS')}
+            >
+              <span><i className="ri-coupon-3-line me-2 fs-5"></i> Kelola Token Paket</span>
+              <span className="badge rounded-pill bg-slate-700 text-slate-300" style={{ background: '#334155' }}>{tokensList.length}</span>
+            </button>
+
+            <button 
+              className={`nav-link text-start rounded-3 px-3 py-2.5 border-0 d-flex align-items-center justify-content-between ${activeTab === 'USERS' ? 'fw-bold text-white' : 'text-slate-400'}`}
+              style={activeTab === 'USERS' ? { background: '#059669', color: '#fff' } : { color: '#cbd5e1', background: 'transparent' }}
+              onClick={() => setActiveTab('USERS')}
+            >
+              <span><i className="ri-user-settings-line me-2 fs-5"></i> Kelola Pengguna</span>
+              <span className="badge rounded-pill bg-slate-700 text-slate-300" style={{ background: '#334155' }}>{usersList.length}</span>
+            </button>
+          </nav>
         </div>
-        <button onClick={fetchAdminData} className="btn btn-outline-secondary rounded-pill px-4 btn-sm mt-3 mt-md-0">
-          <i className="ri-refresh-line me-1"></i> Refresh Data
-        </button>
-      </div>
 
-      {message && <div className="alert alert-info rounded-3 mb-4">{message}</div>}
+        {/* Sidebar Footer: Admin Profile & Actions */}
+        <div className="pt-3 border-top border-slate-800" style={{ borderColor: '#1e293b' }}>
+          <div className="d-flex align-items-center gap-2 mb-3 px-2">
+            <div className="rounded-circle bg-emerald-600 text-white p-2 d-flex align-items-center justify-content-center font-bold" style={{ width: '38px', height: '38px', background: '#059669' }}>
+              👑
+            </div>
+            <div className="text-truncate">
+              <div className="fw-bold small text-white">{user?.name || 'Super Admin'}</div>
+              <small className="text-slate-400 d-block text-truncate" style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{user?.email}</small>
+            </div>
+          </div>
 
-      <ul className="nav nav-tabs mb-4 border-bottom-0 flex-wrap">
-        <li className="nav-item">
-          <button 
-            className={`nav-link border-0 rounded-pill px-4 py-2 me-2 mb-2 ${activeTab === 'ORDERS' ? 'bg-custom-orange text-white fw-bold' : 'text-dark bg-light'}`}
-            onClick={() => setActiveTab('ORDERS')}
-          >
-            📋 Kelola Pesanan ({orders.length})
-          </button>
-        </li>
-        <li className="nav-item">
-          <button 
-            className={`nav-link border-0 rounded-pill px-4 py-2 me-2 mb-2 ${activeTab === 'SERVICES' ? 'bg-custom-orange text-white fw-bold' : 'text-dark bg-light'}`}
-            onClick={() => setActiveTab('SERVICES')}
-          >
-            🛠️ Kelola Layanan / Produk ({servicesList.length})
-          </button>
-        </li>
-        <li className="nav-item">
-          <button 
-            className={`nav-link border-0 rounded-pill px-4 py-2 me-2 mb-2 ${activeTab === 'PACKAGES' ? 'bg-custom-orange text-white fw-bold' : 'text-dark bg-light'}`}
-            onClick={() => setActiveTab('PACKAGES')}
-          >
-            📦 Kelola Paket Kuota ({packagesList.length})
-          </button>
-        </li>
-        <li className="nav-item">
-          <button 
-            className={`nav-link border-0 rounded-pill px-4 py-2 me-2 mb-2 ${activeTab === 'TOKENS' ? 'bg-custom-orange text-white fw-bold' : 'text-dark bg-light'}`}
-            onClick={() => setActiveTab('TOKENS')}
-          >
-            🎟️ Kelola Token & Kupon ({tokensList.length})
-          </button>
-        </li>
-        <li className="nav-item">
-          <button 
-            className={`nav-link border-0 rounded-pill px-4 py-2 mb-2 ${activeTab === 'USERS' ? 'bg-custom-orange text-white fw-bold' : 'text-dark bg-light'}`}
-            onClick={() => setActiveTab('USERS')}
-          >
-            👥 Kelola Pengguna ({usersList.length})
-          </button>
-        </li>
-      </ul>
+          <div className="d-grid gap-2">
+            {onNavigateHome && (
+              <button 
+                onClick={onNavigateHome}
+                className="btn btn-sm btn-outline-light rounded-3 text-start small border-slate-700 text-slate-300"
+                style={{ borderColor: '#334155', color: '#cbd5e1' }}
+              >
+                <i className="ri-external-link-line me-1"></i> Buka Website Utama
+              </button>
+            )}
+
+            <button 
+              onClick={() => {
+                localStorage.removeItem('accessToken');
+                window.location.reload();
+              }}
+              className="btn btn-sm btn-danger rounded-3 text-start small fw-bold"
+            >
+              <i className="ri-logout-box-r-line me-1"></i> Logout Admin Panel
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* MAIN CONTENT AREA */}
+      <main className="flex-grow-1 p-4 overflow-y-auto" style={{ background: '#f8fafc' }}>
+        
+        {/* Topbar */}
+        <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between mb-4 pb-3 border-bottom bg-white p-3 rounded-4 shadow-sm">
+          <div>
+            <span className="small text-muted text-uppercase fw-semibold" style={{ fontSize: '0.75rem' }}>System Dashboard</span>
+            <h4 className="fw-bold mb-0 text-slate-800">
+              {activeTab === 'ORDERS' && '📋 Kelola Pesanan Dokumen'}
+              {activeTab === 'SERVICES' && '🛠️ Kelola Layanan & Tarif'}
+              {activeTab === 'PACKAGES' && '📦 Kelola Paket Kuota'}
+              {activeTab === 'TOKENS' && '🎟️ Kelola Token & Kupon'}
+              {activeTab === 'USERS' && '👥 Kelola Pengguna Sistem'}
+            </h4>
+          </div>
+
+          <div className="d-flex align-items-center gap-2 mt-3 mt-md-0">
+            <button onClick={fetchAdminData} className="btn btn-sm btn-outline-secondary rounded-pill px-3">
+              <i className={`ri-refresh-line me-1 ${loading ? 'spin' : ''}`}></i> Refresh Data
+            </button>
+          </div>
+        </div>
+
+        {message && <div className="alert alert-info rounded-4 mb-4 shadow-sm">{message}</div>}
+
+        {/* STATS WIDGET ROW (Filament Style) */}
+        <div className="row g-3 mb-4">
+          <div className="col-12 col-sm-6 col-xl-3">
+            <div className="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-4 border-emerald-500" style={{ borderLeftColor: '#10b981 !important' }}>
+              <div className="d-flex align-items-center justify-content-between">
+                <div>
+                  <span className="small text-muted font-semibold d-block">Total Pendapatan</span>
+                  <h5 className="fw-extrabold text-slate-800 mb-0 mt-1">Rp {totalRevenue.toLocaleString('id-ID')}</h5>
+                </div>
+                <div className="p-3 rounded-circle bg-emerald-50 text-emerald-600" style={{ background: '#ecfdf5', color: '#059669' }}>
+                  <i className="ri-wallet-3-line fs-4"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="col-12 col-sm-6 col-xl-3">
+            <div className="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-4 border-blue-500" style={{ borderLeftColor: '#3b82f6 !important' }}>
+              <div className="d-flex align-items-center justify-content-between">
+                <div>
+                  <span className="small text-muted font-semibold d-block">Total Pesanan</span>
+                  <h5 className="fw-extrabold text-slate-800 mb-0 mt-1">{orders.length} Dokumen</h5>
+                </div>
+                <div className="p-3 rounded-circle bg-blue-50 text-blue-600" style={{ background: '#eff6ff', color: '#2563eb' }}>
+                  <i className="ri-file-text-line fs-4"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="col-12 col-sm-6 col-xl-3">
+            <div className="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-4 border-amber-500" style={{ borderLeftColor: '#f59e0b !important' }}>
+              <div className="d-flex align-items-center justify-content-between">
+                <div>
+                  <span className="small text-muted font-semibold d-block">Perlu Diproses</span>
+                  <h5 className="fw-extrabold text-amber-600 mb-0 mt-1">{pendingOrdersCount} Dokumen</h5>
+                </div>
+                <div className="p-3 rounded-circle bg-amber-50 text-amber-600" style={{ background: '#fffbeb', color: '#d97706' }}>
+                  <i className="ri-timer-line fs-4"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="col-12 col-sm-6 col-xl-3">
+            <div className="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-4 border-purple-500" style={{ borderLeftColor: '#a855f7 !important' }}>
+              <div className="d-flex align-items-center justify-content-between">
+                <div>
+                  <span className="small text-muted font-semibold d-block">Token Paket Active</span>
+                  <h5 className="fw-extrabold text-purple-600 mb-0 mt-1">{tokensList.length} Token</h5>
+                </div>
+                <div className="p-3 rounded-circle bg-purple-50 text-purple-600" style={{ background: '#faf5ff', color: '#9333ea' }}>
+                  <i className="ri-coupon-3-line fs-4"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* TAB ORDERS */}
 
       {/* TAB ORDERS */}
       {activeTab === 'ORDERS' && (
@@ -1195,6 +1348,7 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
           </div>
         </div>
       )}
+      </main>
     </div>
   );
 }

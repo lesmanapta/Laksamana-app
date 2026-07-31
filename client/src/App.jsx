@@ -100,6 +100,16 @@ export default function App() {
     setActivePage('home');
   };
 
+  if (activePage === 'admin') {
+    return (
+      <AdminDashboard 
+        user={user} 
+        onLoginSuccess={(usr) => setUser(usr)} 
+        onNavigateHome={() => navigateToPage('home')} 
+      />
+    );
+  }
+
   return (
     <div className="min-vh-100 d-flex flex-column justify-content-between">
       <div>
@@ -134,10 +144,6 @@ export default function App() {
 
           {activePage === 'track' && (
             <TrackOrderPage initialOrderId={trackOrderId} />
-          )}
-
-          {activePage === 'admin' && (
-            <AdminDashboard user={user} onLoginSuccess={(usr) => setUser(usr)} />
           )}
         </main>
       </div>

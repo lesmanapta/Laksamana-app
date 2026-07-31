@@ -80,15 +80,6 @@ export default function Navbar({ activePage, setActivePage, user, onOpenLogin, o
                 Cara Order
               </button>
             </li>
-
-            <li className="nav-item">
-              <button 
-                className={`nav-link border-0 bg-transparent rounded-pill px-3 ${isSuperAdmin ? 'text-mint-heading fw-bold' : 'text-muted'} ${activePage === 'admin' ? 'fw-bold text-mint-primary bg-mint-light' : ''}`}
-                onClick={() => navTo('admin')}
-              >
-                <i className="ri-shield-user-line me-1"></i> Admin {isSuperAdmin && '👑'}
-              </button>
-            </li>
           </ul>
 
           <div className="d-flex align-items-center gap-2">
@@ -96,12 +87,12 @@ export default function Navbar({ activePage, setActivePage, user, onOpenLogin, o
               <div className="d-flex align-items-center gap-2">
                 <div className="dropdown">
                   <button 
-                    className={`btn btn-sm dropdown-toggle rounded-pill px-4 py-2 ${isSuperAdmin ? 'bg-mint-dark text-white fw-bold' : 'btn-mint-outline'}`} 
+                    className="btn btn-sm btn-mint-outline rounded-pill px-4 py-2" 
                     type="button" 
                     data-bs-toggle="dropdown"
                     aria-expanded="false"
                   >
-                    <i className="ri-user-smile-line me-1"></i> {user.name} {isSuperAdmin ? '(Super Admin)' : `(${user.tokens || 0} Token)`}
+                    <i className="ri-user-smile-line me-1"></i> {user.name} ({user.tokens || 0} Token)
                   </button>
                   <ul className="dropdown-menu dropdown-menu-end shadow border-0 rounded-4 mt-2 p-2" style={{ minWidth: '220px' }}>
                     <li className="px-2 py-1"><span className="dropdown-item-text text-muted small p-0">{user.email}</span></li>
@@ -111,13 +102,6 @@ export default function Navbar({ activePage, setActivePage, user, onOpenLogin, o
                         <i className="ri-coupon-3-line me-2 text-mint-primary fs-5"></i> Kode Token Saya
                       </button>
                     </li>
-                    {isSuperAdmin && (
-                      <li>
-                        <button className="dropdown-item fw-semibold text-mint-primary rounded-3 py-2" onClick={() => setActivePage('admin')}>
-                          <i className="ri-dashboard-3-line me-2 fs-5"></i> Panel Admin
-                        </button>
-                      </li>
-                    )}
                     <li><hr className="dropdown-divider my-1" /></li>
                     <li>
                       <button className="dropdown-item text-danger fw-semibold rounded-3 py-2" onClick={handleLogoutClick}>
