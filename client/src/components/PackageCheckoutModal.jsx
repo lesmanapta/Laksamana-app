@@ -5,7 +5,9 @@ export default function PackageCheckoutModal({ show, pkg, onClose }) {
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [paymentStep, setPaymentStep] = useState('form'); // 'form' | 'paying' | 'success'
   const [purchasedToken, setPurchasedToken] = useState(null);
+  const [pendingData, setPendingData] = useState(null);
 
   if (!show || !pkg) return null;
 
@@ -36,11 +38,68 @@ export default function PackageCheckoutModal({ show, pkg, onClose }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal memproses pembelian paket');
 
-      setPurchasedToken(data);
+      setPendingData(data);
+
+      // Open Midtrans Snap payment popup
+      if (data.snapToken && window.snap) {
+        setPaymentStep('paying');
+        window.snap.pay(data.snapToken, {
+          onSuccess: async (result) => {
+            console.log('✅ Package payment success:', result);
+            await activateToken(data.tokenCode, data.transactionId);
+          },
+          onPending: (result) => {
+            console.log('⏳ Package payment pending:', result);
+            setPaymentStep('paying');
+            setError('Pembayaran masih pending. Silakan selesaikan pembayaran Anda. Token akan dikirim otomatis setelah pembayaran dikonfirmasi.');
+          },
+          onError: (result) => {
+            console.log('❌ Package payment error:', result);
+            setPaymentStep('form');
+            setError('Pembayaran gagal. Silakan coba lagi.');
+          },
+          onClose: () => {
+            if (paymentStep !== 'success') {
+              setPaymentStep('form');
+              setError('Pembayaran dibatalkan. Kode token belum aktif. Silakan ulangi pembelian.');
+            }
+          }
+        });
+      } else if (data.snapRedirectUrl) {
+        // Fallback: redirect to Midtrans payment page
+        window.open(data.snapRedirectUrl, '_blank');
+        setPaymentStep('paying');
+        setError('Halaman pembayaran telah dibuka di tab baru. Selesaikan pembayaran, lalu kembali ke sini.');
+      } else {
+        throw new Error('Midtrans Snap tidak tersedia. Pastikan koneksi internet stabil.');
+      }
     } catch (err) {
       setError(err.message);
+      setPaymentStep('form');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const activateToken = async (tokenCode, transactionId) => {
+    try {
+      const res = await fetch('/api/orders/package-payment-success', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tokenCode, transactionId })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal mengaktifkan token');
+
+      setPurchasedToken({
+        tokenCode: data.tokenCode || tokenCode,
+        quotaTotal: data.quotaTotal,
+        packageName: data.packageName
+      });
+      setPaymentStep('success');
+    } catch (err) {
+      setError('Pembayaran berhasil tapi gagal mengaktifkan token: ' + err.message + '. Hubungi admin.');
     }
   };
 
@@ -55,7 +114,7 @@ export default function PackageCheckoutModal({ show, pkg, onClose }) {
             <button type="button" className="btn-close" onClick={onClose}></button>
           </div>
 
-          {!purchasedToken ? (
+          {paymentStep === 'form' && (
             <form onSubmit={handleBuyPackage}>
               {error && <div className="alert alert-danger small py-2">{error}</div>}
 
@@ -82,7 +141,7 @@ export default function PackageCheckoutModal({ show, pkg, onClose }) {
                   value={whatsapp}
                   onChange={(e) => setWhatsapp(e.target.value)}
                 />
-                <small className="text-muted">Kode token akan dikirimkan otomatis ke WhatsApp ini.</small>
+                <small className="text-muted">Kode token akan dikirimkan otomatis ke WhatsApp ini setelah pembayaran berhasil.</small>
               </div>
 
               <div className="mb-4">
@@ -101,17 +160,44 @@ export default function PackageCheckoutModal({ show, pkg, onClose }) {
                 className="btn btn-mint-primary w-100 rounded-pill py-2.5 fw-bold"
                 disabled={submitting}
               >
-                {submitting ? 'Memproses Pembelian...' : 'Beli Paket & Kirim Kode Token ke WA 🚀'}
+                {submitting ? 'Memproses...' : `Bayar Rp ${pkg.price ? pkg.price.toLocaleString('id-ID') : '0'} & Dapatkan Token 💳`}
               </button>
+              <div className="text-center mt-2">
+                <small className="text-muted"><i className="ri-shield-check-line"></i> Pembayaran aman via Midtrans (QRIS, Transfer, E-Wallet)</small>
+              </div>
             </form>
-          ) : (
+          )}
+
+          {paymentStep === 'paying' && (
+            <div className="text-center py-4">
+              <div className="spinner-border text-mint-primary mb-3" role="status" style={{ width: '3rem', height: '3rem' }}>
+                <span className="visually-hidden">Loading...</span>
+              </div>
+              <h5 className="fw-bold text-mint-heading mb-2">Menunggu Pembayaran...</h5>
+              <p className="small text-secondary mb-3">
+                Silakan selesaikan pembayaran Anda melalui popup Midtrans.<br/>
+                Kode Token akan dikirim ke WhatsApp (<b>{whatsapp}</b>) setelah pembayaran berhasil.
+              </p>
+              {error && <div className="alert alert-warning small py-2">{error}</div>}
+              {pendingData && (
+                <div className="bg-light p-2 rounded-3 mb-3">
+                  <small className="text-muted">Token ID: <code>{pendingData.tokenCode}</code></small>
+                </div>
+              )}
+              <button onClick={() => { setPaymentStep('form'); setError(''); }} className="btn btn-outline-secondary btn-sm rounded-pill">
+                <i className="ri-arrow-left-line"></i> Kembali
+              </button>
+            </div>
+          )}
+
+          {paymentStep === 'success' && purchasedToken && (
             <div className="text-center py-3">
               <div className="icon-mint-box mx-auto mb-3" style={{ width: '64px', height: '64px' }}>
                 <i className="ri-checkbox-circle-fill fs-1 text-mint-primary"></i>
               </div>
-              <h5 className="fw-bold text-mint-heading mb-1">Pembelian Paket Berhasil!</h5>
+              <h5 className="fw-bold text-mint-heading mb-1">Pembayaran Berhasil! 🎉</h5>
               <p className="small text-secondary mb-3">
-                Kode Token Paket Anda telah sukses diterbitkan dan dikirim ke WhatsApp (<b>{whatsapp}</b>).
+                Token Paket Anda telah <b>AKTIF</b> dan dikirim ke WhatsApp (<b>{whatsapp}</b>).
               </p>
 
               <div className="bg-mint-light p-3 rounded-4 mb-4 border border-success border-opacity-25 text-center">
@@ -120,7 +206,7 @@ export default function PackageCheckoutModal({ show, pkg, onClose }) {
                   {purchasedToken.tokenCode}
                 </span>
                 <div className="small text-muted mt-2">
-                  Gunakan Kode Token ini pada menu <b>Form Order Cek Plagiasi</b> untuk *Skip Pembayaran*!
+                  Gunakan Kode Token ini pada menu <b>Form Order Cek Plagiasi</b> untuk <b>Skip Pembayaran</b>!
                 </div>
               </div>
 
@@ -128,7 +214,7 @@ export default function PackageCheckoutModal({ show, pkg, onClose }) {
                 onClick={onClose} 
                 className="btn btn-mint-primary w-100 rounded-pill py-2 fw-bold"
               >
-                Selesai & Gunakan Token Sekaran 🎟️
+                Selesai & Gunakan Token Sekarang 🎟️
               </button>
             </div>
           )}

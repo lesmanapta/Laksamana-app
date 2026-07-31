@@ -76,7 +76,7 @@ router.post('/validate-token', async (req, res) => {
   }
 });
 
-// POST /api/orders/buy-package - Buy Paket Laksamana & Generate Package Token
+// POST /api/orders/buy-package - Buy Paket Laksamana (Payment First, Token After)
 router.post('/buy-package', async (req, res) => {
   const { packageId, packageName, price, whatsapp, email, quota } = req.body;
 
@@ -86,26 +86,94 @@ router.post('/buy-package', async (req, res) => {
 
   const tokenCode = `LKS-PKG-${packageId.toUpperCase().slice(-3)}-${Math.floor(100000 + Math.random() * 900000)}`;
   const quotaTotal = parseInt(quota) || 3;
+  const packagePrice = parseInt(price) || 27500;
+  const transactionId = `TRX-PKG-${Math.floor(100000 + Math.random() * 900000)}-${Date.now().toString().slice(-4)}`;
 
   try {
     const db = getPool();
+
+    // 1. Insert token with status PENDING (not yet active until payment confirmed)
     await db.query(`
       INSERT INTO package_tokens (token_code, package_id, package_name, user_email, whatsapp, quota_total, quota_remaining, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE')
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING')
     `, [tokenCode, packageId, packageName || 'Paket Laksamana', email || '', whatsapp, quotaTotal, quotaTotal]);
 
-    // Send WA notification with Token Code
-    const waMsg = `🎉 *PEMBELIAN PAKET LAKSAMANA BERHASIL!*\n\nHalo, paket *${packageName}* Anda telah sukses dibuat.\n\n🎟️ *KODE TOKEN ANDA:* \`${tokenCode}\`\n• Kuota Cek: *${quotaTotal}x Cek Plagiasi*\n• Status: ✅ AKTIF\n\nGunakan Kode Token \`${tokenCode}\` saat order di website Laksamana untuk *Skip Pembayaran*!\n🌐 http://localhost:3000`;
-    sendWhatsAppMessage(whatsapp, waMsg);
+    // 2. Create Midtrans Snap transaction for package payment
+    const orderForMidtrans = {
+      id: tokenCode,
+      serviceSlug: packageId,
+      serviceName: (packageName || 'Paket Laksamana').substring(0, 50),
+      amount: packagePrice,
+      whatsapp,
+      email: email || ''
+    };
+
+    const midtransRes = await createMidtransTransaction(orderForMidtrans, transactionId);
+
+    // 3. Save transaction record linked to this token
+    await db.query(`
+      INSERT INTO transactions (id, order_id, amount, payment_type, snap_token, snap_redirect_url, status)
+      VALUES (?, ?, ?, ?, ?, ?, 'PENDING')
+    `, [transactionId, tokenCode, packagePrice, 'Paket Laksamana', midtransRes.snapToken, midtransRes.redirectUrl]);
 
     res.status(201).json({
-      message: 'Pembelian Paket Laksamana Berhasil! Kode Token telah dikirimkan ke WA.',
+      message: 'Silakan selesaikan pembayaran untuk menerima Kode Token Paket.',
       tokenCode,
       quotaTotal,
-      packageName
+      packageName,
+      snapToken: midtransRes.snapToken,
+      snapRedirectUrl: midtransRes.redirectUrl,
+      transactionId,
+      price: packagePrice,
+      status: 'PENDING_PAYMENT'
     });
   } catch (err) {
     res.status(500).json({ error: 'Gagal memproses paket: ' + err.message });
+  }
+});
+
+// POST /api/orders/package-payment-success - Activate token after client-side payment confirmed
+router.post('/package-payment-success', async (req, res) => {
+  const { tokenCode, transactionId } = req.body;
+
+  if (!tokenCode) {
+    return res.status(400).json({ error: 'Token code required.' });
+  }
+
+  try {
+    const db = getPool();
+
+    // Check if token exists and is still PENDING
+    const [tokenRows] = await db.query('SELECT * FROM package_tokens WHERE token_code = ?', [tokenCode]);
+    if (tokenRows.length === 0) {
+      return res.status(404).json({ error: 'Token tidak ditemukan.' });
+    }
+
+    const token = tokenRows[0];
+    if (token.status === 'ACTIVE') {
+      return res.json({ message: 'Token sudah aktif.', tokenCode, alreadyActive: true });
+    }
+
+    // Activate token
+    await db.query('UPDATE package_tokens SET status = "ACTIVE" WHERE token_code = ?', [tokenCode]);
+
+    // Update transaction status
+    if (transactionId) {
+      await db.query('UPDATE transactions SET status = "SETTLEMENT" WHERE id = ?', [transactionId]);
+    }
+
+    // Send WA notification with Token Code
+    const waMsg = `🎉 *PEMBAYARAN PAKET LAKSAMANA BERHASIL!*\n\nHalo, pembayaran paket *${token.package_name}* Anda telah dikonfirmasi.\n\n🎟️ *KODE TOKEN ANDA:* \`${tokenCode}\`\n• Kuota Cek: *${token.quota_total}x Cek Plagiasi*\n• Status: ✅ AKTIF\n\nGunakan Kode Token \`${tokenCode}\` saat order di website Laksamana untuk *Skip Pembayaran*!\n🌐 https://laksamana.biz.id`;
+    sendWhatsAppMessage(token.whatsapp, waMsg);
+
+    res.json({
+      message: 'Pembayaran berhasil! Token Paket telah diaktifkan & dikirim ke WhatsApp.',
+      tokenCode,
+      quotaTotal: token.quota_total,
+      packageName: token.package_name
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal mengaktifkan token: ' + err.message });
   }
 });
 
@@ -308,6 +376,29 @@ router.post('/midtrans-webhook', async (req, res) => {
     await db.query('UPDATE transactions SET status = ? WHERE id = ?', [transaction_status, order_id]);
   }
 
+  // Check if this is a package token purchase (order_id starts with LKS-PKG-)
+  if (targetOrderId && targetOrderId.startsWith('LKS-PKG-')) {
+    if (transaction_status === 'capture' || transaction_status === 'settlement') {
+      if (fraud_status === 'accept' || !fraud_status) {
+        // Activate the pending token
+        const [tokenRows] = await db.query('SELECT * FROM package_tokens WHERE token_code = ?', [targetOrderId]);
+        if (tokenRows.length > 0) {
+          const token = tokenRows[0];
+          await db.query('UPDATE package_tokens SET status = "ACTIVE" WHERE token_code = ?', [targetOrderId]);
+
+          const waMsg = `🎉 *PEMBAYARAN PAKET LAKSAMANA BERHASIL!*\n\nHalo, pembayaran paket *${token.package_name}* Anda telah dikonfirmasi.\n\n🎟️ *KODE TOKEN ANDA:* \`${targetOrderId}\`\n• Kuota Cek: *${token.quota_total}x Cek Plagiasi*\n• Status: ✅ AKTIF\n\nGunakan Kode Token \`${targetOrderId}\` saat order di website Laksamana untuk *Skip Pembayaran*!\n🌐 https://laksamana.biz.id`;
+          sendWhatsAppMessage(token.whatsapp, waMsg);
+          console.log(`🎟️ [WEBHOOK] Package token ${targetOrderId} activated via Midtrans webhook.`);
+        }
+      }
+    } else if (transaction_status === 'cancel' || transaction_status === 'deny' || transaction_status === 'expire') {
+      await db.query('UPDATE package_tokens SET status = "EXPIRED" WHERE token_code = ?', [targetOrderId]);
+      console.log(`❌ [WEBHOOK] Package token ${targetOrderId} marked as EXPIRED (payment ${transaction_status}).`);
+    }
+    return res.json({ status: 'OK' });
+  }
+
+  // Regular order processing (non-package)
   const [rows] = await db.query('SELECT * FROM orders WHERE id = ?', [targetOrderId]);
   if (rows.length === 0) return res.status(404).json({ error: 'Order not found' });
   
