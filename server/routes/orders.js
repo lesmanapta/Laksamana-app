@@ -346,14 +346,23 @@ router.post('/create', cpUpload, async (req, res) => {
             console.log(`🚀 [BACKGROUND WORKER] Triggering automated Turnitin check for ${orderId}...`);
             const trnRes = await runTurnitinWorker(filePath, fileName, orderId, parsedFilters);
 
-            await db.query(`
-              UPDATE orders 
-              SET status = 'COMPLETED', similarity_index = ?, ai_score = ?, completed_at = CURRENT_TIMESTAMP 
-              WHERE id = ?
-            `, [trnRes.similarityIndex, trnRes.aiScore, orderId]);
+            if (trnRes && trnRes.autoCompleted) {
+              await db.query(`
+                UPDATE orders 
+                SET status = 'COMPLETED', similarity_index = ?, ai_score = ?, completed_at = CURRENT_TIMESTAMP 
+                WHERE id = ?
+              `, [trnRes.similarityIndex, trnRes.aiScore, orderId]);
 
-            const fullDownloadUrl = `http://localhost:5000${reportDownloadUrl}`;
-            sendWhatsAppMessage(whatsapp, getReportCompletedWATemplate(newOrder, fullDownloadUrl), fullDownloadUrl);
+              const fullDownloadUrl = `http://localhost:5000${reportDownloadUrl}`;
+              sendWhatsAppMessage(whatsapp, getReportCompletedWATemplate(newOrder, fullDownloadUrl), fullDownloadUrl);
+            } else {
+              console.log(`⏳ [PROCESSING] Order ${orderId} is in PROCESSING state. Waiting for Admin PDF upload.`);
+              await db.query(`
+                UPDATE orders 
+                SET status = 'PROCESSING', admin_notes = 'Menunggu pengerjaan / unggah laporan PDF Turnitin oleh Admin'
+                WHERE id = ?
+              `, [orderId]);
+            }
           }
         } catch (workerErr) {
           console.error(`❌ [BACKGROUND WORKER ERROR] Order ${orderId}:`, workerErr.message);
@@ -412,14 +421,23 @@ router.post('/confirm-payment', async (req, res) => {
         } else {
           console.log(`🚀 [CONFIRM PAYMENT] Running Turnitin check for ${orderId}...`);
           const trnRes = await runTurnitinWorker(order.file_path, order.file_name, order.id, filterOpts);
-          await db.query(`
-            UPDATE orders 
-            SET status = 'COMPLETED', similarity_index = ?, ai_score = ?, completed_at = CURRENT_TIMESTAMP 
-            WHERE id = ?
-          `, [trnRes.similarityIndex, trnRes.aiScore, order.id]);
+          if (trnRes && trnRes.autoCompleted) {
+            await db.query(`
+              UPDATE orders 
+              SET status = 'COMPLETED', similarity_index = ?, ai_score = ?, completed_at = CURRENT_TIMESTAMP 
+              WHERE id = ?
+            `, [trnRes.similarityIndex, trnRes.aiScore, order.id]);
 
-          const fullDownloadUrl = `http://localhost:5000${order.report_download_url}`;
-          sendWhatsAppMessage(order.whatsapp, getReportCompletedWATemplate(order, fullDownloadUrl), fullDownloadUrl);
+            const fullDownloadUrl = `http://localhost:5000${order.report_download_url}`;
+            sendWhatsAppMessage(order.whatsapp, getReportCompletedWATemplate(order, fullDownloadUrl), fullDownloadUrl);
+          } else {
+            console.log(`⏳ [CONFIRM PAYMENT] Order ${orderId} status set to PROCESSING. Waiting for Admin PDF upload.`);
+            await db.query(`
+              UPDATE orders 
+              SET status = 'PROCESSING', admin_notes = 'Menunggu unggah laporan PDF Turnitin oleh Admin'
+              WHERE id = ?
+            `, [order.id]);
+          }
         }
       } catch (err) {
         console.error(`❌ [CONFIRM PAYMENT ERROR] Order ${orderId}:`, err.message);
@@ -489,14 +507,23 @@ router.post('/midtrans-webhook', async (req, res) => {
         sendWhatsAppMessage(order.whatsapp, reportWaText, fullDownloadUrl);
       } else if (order.service_slug === 'cek-plagiasi') {
         const trnRes = await runTurnitinWorker(order.file_path, order.file_name, order.id, filterOpts);
-        await db.query(`
-          UPDATE orders 
-          SET status = 'COMPLETED', similarity_index = ?, ai_score = ?, completed_at = CURRENT_TIMESTAMP 
-          WHERE id = ?
-        `, [trnRes.similarityIndex, trnRes.aiScore, order.id]);
+        if (trnRes && trnRes.autoCompleted) {
+          await db.query(`
+            UPDATE orders 
+            SET status = 'COMPLETED', similarity_index = ?, ai_score = ?, completed_at = CURRENT_TIMESTAMP 
+            WHERE id = ?
+          `, [trnRes.similarityIndex, trnRes.aiScore, order.id]);
 
-        const fullDownloadUrl = `http://localhost:5000${order.report_download_url}`;
-        sendWhatsAppMessage(order.whatsapp, getReportCompletedWATemplate(order, fullDownloadUrl), fullDownloadUrl);
+          const fullDownloadUrl = `http://localhost:5000${order.report_download_url}`;
+          sendWhatsAppMessage(order.whatsapp, getReportCompletedWATemplate(order, fullDownloadUrl), fullDownloadUrl);
+        } else {
+          console.log(`⏳ [WEBHOOK] Order ${order.id} set to PROCESSING (paid, awaiting Admin PDF upload).`);
+          await db.query(`
+            UPDATE orders 
+            SET status = 'PROCESSING', admin_notes = 'Menunggu unggah laporan PDF Turnitin oleh Admin'
+            WHERE id = ?
+          `, [order.id]);
+        }
       }
     }
   } else if (transaction_status === 'cancel' || transaction_status === 'deny' || transaction_status === 'expire') {
