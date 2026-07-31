@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 
 export default function AdminDashboard({ user, onLoginSuccess }) {
   const [orders, setOrders] = useState([]);
-  const [usersList, setUsersList] = useState([]);
+  const [servicesList, setServicesList] = useState([]);
+  const [packagesList, setPackagesList] = useState([]);
   const [tokensList, setTokensList] = useState([]);
+  const [usersList, setUsersList] = useState([]);
+
   const [activeTab, setActiveTab] = useState('ORDERS');
   const [filter, setFilter] = useState('ALL');
   const [loading, setLoading] = useState(false);
@@ -23,6 +26,23 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
 
+  // Service Edit / Create form state
+  const [serviceModal, setServiceModal] = useState(null); // null or object
+  const [serviceSlug, setServiceSlug] = useState('');
+  const [serviceTitle, setServiceTitle] = useState('');
+  const [serviceSubtitle, setServiceSubtitle] = useState('');
+  const [servicePrice, setServicePrice] = useState('10000');
+  const [serviceUnit, setServiceUnit] = useState('file');
+  const [serviceActive, setServiceActive] = useState(true);
+
+  // Package Edit / Create form state
+  const [packageModal, setPackageModal] = useState(null); // null or object
+  const [packageName, setPackageName] = useState('');
+  const [packagePrice, setPackagePrice] = useState('27500');
+  const [packageQuota, setPackageQuota] = useState('3');
+  const [packageValidity, setPackageValidity] = useState('7 hari');
+  const [packageActive, setPackageActive] = useState(true);
+
   // Generate Custom Token form state
   const [customTokenCode, setCustomTokenCode] = useState('');
   const [tokenPkgName, setTokenPkgName] = useState('Token Promo Laksamana');
@@ -38,6 +58,14 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
       const resOrders = await fetch('/api/admin/orders');
       const dataOrders = await resOrders.json();
       setOrders(dataOrders.orders || []);
+
+      const resServices = await fetch('/api/admin/services');
+      const dataServices = await resServices.json();
+      setServicesList(dataServices.services || []);
+
+      const resPackages = await fetch('/api/admin/packages');
+      const dataPackages = await resPackages.json();
+      setPackagesList(dataPackages.packages || []);
 
       const resUsers = await fetch('/api/admin/users');
       const dataUsers = await resUsers.json();
@@ -88,6 +116,134 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
     }
   };
 
+  // ==================== SERVICE HANDLERS ====================
+  const handleOpenServiceModal = (svc = null) => {
+    if (svc) {
+      setServiceModal(svc);
+      setServiceSlug(svc.slug);
+      setServiceTitle(svc.title);
+      setServiceSubtitle(svc.subtitle || '');
+      setServicePrice(svc.price);
+      setServiceUnit(svc.unit || 'file');
+      setServiceActive(Boolean(svc.active));
+    } else {
+      setServiceModal({ isNew: true });
+      setServiceSlug('');
+      setServiceTitle('');
+      setServiceSubtitle('');
+      setServicePrice('10000');
+      setServiceUnit('file');
+      setServiceActive(true);
+    }
+  };
+
+  const handleSaveService = async (e) => {
+    e.preventDefault();
+    try {
+      const isNew = serviceModal.isNew;
+      const url = isNew ? '/api/admin/services' : `/api/admin/services/${serviceModal.id}`;
+      const method = isNew ? 'POST' : 'PUT';
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slug: serviceSlug,
+          title: serviceTitle,
+          subtitle: serviceSubtitle,
+          price: servicePrice,
+          unit: serviceUnit,
+          active: serviceActive
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal menyimpan layanan');
+
+      setMessage(`✅ ${data.message}`);
+      setServiceModal(null);
+      fetchAdminData();
+    } catch (err) {
+      setMessage(`❌ ${err.message}`);
+    }
+  };
+
+  const handleDeleteService = async (svcId, svcTitle) => {
+    if (!window.confirm(`Hapus layanan "${svcTitle}"?`)) return;
+    try {
+      const res = await fetch(`/api/admin/services/${svcId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal menghapus layanan');
+      setMessage(`✅ ${data.message}`);
+      fetchAdminData();
+    } catch (err) {
+      setMessage(`❌ ${err.message}`);
+    }
+  };
+
+  // ==================== PACKAGE HANDLERS ====================
+  const handleOpenPackageModal = (pkg = null) => {
+    if (pkg) {
+      setPackageModal(pkg);
+      setPackageName(pkg.name);
+      setPackagePrice(pkg.price);
+      setPackageQuota(pkg.quota);
+      setPackageValidity(pkg.validity || '7 hari');
+      setPackageActive(Boolean(pkg.active));
+    } else {
+      setPackageModal({ isNew: true });
+      setPackageName('');
+      setPackagePrice('27500');
+      setPackageQuota('3');
+      setPackageValidity('7 hari');
+      setPackageActive(true);
+    }
+  };
+
+  const handleSavePackage = async (e) => {
+    e.preventDefault();
+    try {
+      const isNew = packageModal.isNew;
+      const url = isNew ? '/api/admin/packages' : `/api/admin/packages/${packageModal.id}`;
+      const method = isNew ? 'POST' : 'PUT';
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: packageName,
+          price: packagePrice,
+          quota: packageQuota,
+          validity: packageValidity,
+          active: packageActive
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal menyimpan paket');
+
+      setMessage(`✅ ${data.message}`);
+      setPackageModal(null);
+      fetchAdminData();
+    } catch (err) {
+      setMessage(`❌ ${err.message}`);
+    }
+  };
+
+  const handleDeletePackage = async (pkgId, pkgName) => {
+    if (!window.confirm(`Hapus paket "${pkgName}"?`)) return;
+    try {
+      const res = await fetch(`/api/admin/packages/${pkgId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal menghapus paket');
+      setMessage(`✅ ${data.message}`);
+      fetchAdminData();
+    } catch (err) {
+      setMessage(`❌ ${err.message}`);
+    }
+  };
+
+  // ==================== USER HANDLERS ====================
   const handleVerifyUser = async (userId, userEmail) => {
     if (!window.confirm(`Aktivasi akun user ${userEmail}?`)) return;
     try {
@@ -240,7 +396,7 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
                 <i className="ri-shield-user-line fs-2"></i>
               </div>
               <h4 className="fw-bold mb-1">Login Super Admin</h4>
-              <p className="small text-muted mb-4">Masuk untuk mengelola seluruh pesanan & akun Laksamana</p>
+              <p className="small text-muted mb-4">Masuk untuk mengelola seluruh produk, pesanan & akun Laksamana</p>
 
               {loginError && <div className="alert alert-danger small py-2">{loginError}</div>}
 
@@ -303,18 +459,34 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
 
       {message && <div className="alert alert-info rounded-3 mb-4">{message}</div>}
 
-      <ul className="nav nav-tabs mb-4 border-bottom-0">
+      <ul className="nav nav-tabs mb-4 border-bottom-0 flex-wrap">
         <li className="nav-item">
           <button 
-            className={`nav-link border-0 rounded-pill px-4 py-2 me-2 ${activeTab === 'ORDERS' ? 'bg-custom-orange text-white fw-bold' : 'text-dark bg-light'}`}
+            className={`nav-link border-0 rounded-pill px-4 py-2 me-2 mb-2 ${activeTab === 'ORDERS' ? 'bg-custom-orange text-white fw-bold' : 'text-dark bg-light'}`}
             onClick={() => setActiveTab('ORDERS')}
           >
-            📋 Kelola Semua Pesanan ({orders.length})
+            📋 Kelola Pesanan ({orders.length})
           </button>
         </li>
         <li className="nav-item">
           <button 
-            className={`nav-link border-0 rounded-pill px-4 py-2 me-2 ${activeTab === 'TOKENS' ? 'bg-custom-orange text-white fw-bold' : 'text-dark bg-light'}`}
+            className={`nav-link border-0 rounded-pill px-4 py-2 me-2 mb-2 ${activeTab === 'SERVICES' ? 'bg-custom-orange text-white fw-bold' : 'text-dark bg-light'}`}
+            onClick={() => setActiveTab('SERVICES')}
+          >
+            🛠️ Kelola Layanan / Produk ({servicesList.length})
+          </button>
+        </li>
+        <li className="nav-item">
+          <button 
+            className={`nav-link border-0 rounded-pill px-4 py-2 me-2 mb-2 ${activeTab === 'PACKAGES' ? 'bg-custom-orange text-white fw-bold' : 'text-dark bg-light'}`}
+            onClick={() => setActiveTab('PACKAGES')}
+          >
+            📦 Kelola Paket Kuota ({packagesList.length})
+          </button>
+        </li>
+        <li className="nav-item">
+          <button 
+            className={`nav-link border-0 rounded-pill px-4 py-2 me-2 mb-2 ${activeTab === 'TOKENS' ? 'bg-custom-orange text-white fw-bold' : 'text-dark bg-light'}`}
             onClick={() => setActiveTab('TOKENS')}
           >
             🎟️ Kelola Token & Kupon ({tokensList.length})
@@ -322,7 +494,7 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
         </li>
         <li className="nav-item">
           <button 
-            className={`nav-link border-0 rounded-pill px-4 py-2 ${activeTab === 'USERS' ? 'bg-custom-orange text-white fw-bold' : 'text-dark bg-light'}`}
+            className={`nav-link border-0 rounded-pill px-4 py-2 mb-2 ${activeTab === 'USERS' ? 'bg-custom-orange text-white fw-bold' : 'text-dark bg-light'}`}
             onClick={() => setActiveTab('USERS')}
           >
             👥 Kelola Pengguna ({usersList.length})
@@ -330,6 +502,7 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
         </li>
       </ul>
 
+      {/* TAB ORDERS */}
       {activeTab === 'ORDERS' && (
         <div>
           <div className="d-flex gap-2 mb-4 overflow-x-auto pb-2">
@@ -430,6 +603,133 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
                       );
                     })
                   )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB SERVICES / PRODUK */}
+      {activeTab === 'SERVICES' && (
+        <div>
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <h5 className="fw-bold mb-0">🛠️ Daftar Layanan & Tarif Produk</h5>
+            <button onClick={() => handleOpenServiceModal(null)} className="btn btn-mint-primary rounded-pill btn-sm px-3 fw-bold">
+              + Tambah Layanan Baru
+            </button>
+          </div>
+
+          <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div className="table-responsive">
+              <table className="table table-hover align-middle mb-0">
+                <thead className="bg-light small text-secondary">
+                  <tr>
+                    <th className="ps-4">SLUG LAYANAN</th>
+                    <th>NAMA PRODUK / LAYANAN</th>
+                    <th>TARIF HARGA</th>
+                    <th>SATUAN</th>
+                    <th>STATUS AKTIF</th>
+                    <th className="text-end pe-4">AKSI ADMIN</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {servicesList.map(s => (
+                    <tr key={s.id}>
+                      <td className="ps-4 font-monospace small fw-bold text-mint-heading">{s.slug}</td>
+                      <td>
+                        <span className="fw-bold text-dark d-block">{s.title}</span>
+                        <small className="text-muted">{s.subtitle}</small>
+                      </td>
+                      <td className="fw-bold text-mint-primary">
+                        Rp {s.price ? s.price.toLocaleString('id-ID') : 0}
+                      </td>
+                      <td><span className="badge bg-light text-dark border">{s.unit}</span></td>
+                      <td>
+                        <span className={`badge rounded-pill ${s.active ? 'bg-success' : 'bg-secondary'}`}>
+                          {s.active ? '✅ Aktif' : '🔒 Segera Hadir'}
+                        </span>
+                      </td>
+                      <td className="text-end pe-4">
+                        <button 
+                          onClick={() => handleOpenServiceModal(s)}
+                          className="btn btn-sm btn-outline-primary rounded-pill px-3 me-1"
+                        >
+                          Edit Tarif
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteService(s.id, s.title)}
+                          className="btn btn-sm btn-outline-danger rounded-pill px-2"
+                        >
+                          Hapus
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB PACKAGES / PAKET KUOTA */}
+      {activeTab === 'PACKAGES' && (
+        <div>
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <h5 className="fw-bold mb-0">📦 Daftar Paket Token Kuota</h5>
+            <button onClick={() => handleOpenPackageModal(null)} className="btn btn-mint-primary rounded-pill btn-sm px-3 fw-bold">
+              + Tambah Paket Kuota Baru
+            </button>
+          </div>
+
+          <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div className="table-responsive">
+              <table className="table table-hover align-middle mb-0">
+                <thead className="bg-light small text-secondary">
+                  <tr>
+                    <th className="ps-4">NAMA PAKET</th>
+                    <th>HARGA PAKET</th>
+                    <th>KUOTA CEK</th>
+                    <th>MASA AKTIF</th>
+                    <th>STATUS AKTIF</th>
+                    <th className="text-end pe-4">AKSI ADMIN</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {packagesList.map(p => (
+                    <tr key={p.id}>
+                      <td className="ps-4 fw-bold text-dark">{p.name}</td>
+                      <td className="fw-bold text-mint-primary">
+                        Rp {p.price ? p.price.toLocaleString('id-ID') : 0}
+                      </td>
+                      <td>
+                        <span className="badge bg-mint-light text-mint-heading font-monospace px-2 py-1">
+                          {p.quota}x Cek
+                        </span>
+                      </td>
+                      <td className="small text-muted">{p.validity}</td>
+                      <td>
+                        <span className={`badge rounded-pill ${p.active ? 'bg-success' : 'bg-secondary'}`}>
+                          {p.active ? '✅ Aktif' : '🔒 Non-Aktif'}
+                        </span>
+                      </td>
+                      <td className="text-end pe-4">
+                        <button 
+                          onClick={() => handleOpenPackageModal(p)}
+                          className="btn btn-sm btn-outline-primary rounded-pill px-3 me-1"
+                        >
+                          Edit Paket
+                        </button>
+                        <button 
+                          onClick={() => handleDeletePackage(p.id, p.name)}
+                          className="btn btn-sm btn-outline-danger rounded-pill px-2"
+                        >
+                          Hapus
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -628,6 +928,172 @@ export default function AdminDashboard({ user, onLoginSuccess }) {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Edit / Create Service */}
+      {serviceModal && (
+        <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content border-0 rounded-4 shadow-lg p-3">
+              <div className="modal-header border-0 pb-0">
+                <h5 className="modal-title fw-bold">
+                  {serviceModal.isNew ? 'Tambah Layanan Baru' : `Edit Layanan: ${serviceModal.title}`}
+                </h5>
+                <button type="button" className="btn-close" onClick={() => setServiceModal(null)}></button>
+              </div>
+              <form onSubmit={handleSaveService}>
+                <div className="modal-body">
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold">Slug Layanan (ID Unik)</label>
+                    <input 
+                      type="text" 
+                      className="form-control rounded-3" 
+                      required 
+                      disabled={!serviceModal.isNew}
+                      value={serviceSlug}
+                      onChange={(e) => setServiceSlug(e.target.value)}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold">Judul Layanan</label>
+                    <input 
+                      type="text" 
+                      className="form-control rounded-3" 
+                      required
+                      value={serviceTitle}
+                      onChange={(e) => setServiceTitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold">Subtitle / Tagline</label>
+                    <input 
+                      type="text" 
+                      className="form-control rounded-3" 
+                      value={serviceSubtitle}
+                      onChange={(e) => setServiceSubtitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="row g-2 mb-3">
+                    <div className="col-6">
+                      <label className="form-label small fw-semibold">Tarif Harga (Rp)</label>
+                      <input 
+                        type="number" 
+                        className="form-control rounded-3" 
+                        required
+                        value={servicePrice}
+                        onChange={(e) => setServicePrice(e.target.value)}
+                      />
+                    </div>
+                    <div className="col-6">
+                      <label className="form-label small fw-semibold">Satuan (file/kata/halaman)</label>
+                      <input 
+                        type="text" 
+                        className="form-control rounded-3" 
+                        required
+                        value={serviceUnit}
+                        onChange={(e) => setServiceUnit(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="form-check form-switch mb-2">
+                    <input 
+                      className="form-check-input" 
+                      type="checkbox" 
+                      id="svcActiveToggle"
+                      checked={serviceActive}
+                      onChange={(e) => setServiceActive(e.target.checked)}
+                    />
+                    <label className="form-check-label fw-semibold" htmlFor="svcActiveToggle">
+                      Status Layanan Aktif (Ditampilkan di Website)
+                    </label>
+                  </div>
+                </div>
+                <div className="modal-footer border-0 pt-0">
+                  <button type="button" className="btn btn-secondary rounded-pill px-4" onClick={() => setServiceModal(null)}>Batal</button>
+                  <button type="submit" className="btn btn-mint-primary rounded-pill px-4 fw-bold">Simpan Layanan 🚀</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Edit / Create Package */}
+      {packageModal && (
+        <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content border-0 rounded-4 shadow-lg p-3">
+              <div className="modal-header border-0 pb-0">
+                <h5 className="modal-title fw-bold">
+                  {packageModal.isNew ? 'Tambah Paket Baru' : `Edit Paket: ${packageModal.name}`}
+                </h5>
+                <button type="button" className="btn-close" onClick={() => setPackageModal(null)}></button>
+              </div>
+              <form onSubmit={handleSavePackage}>
+                <div className="modal-body">
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold">Nama Paket</label>
+                    <input 
+                      type="text" 
+                      className="form-control rounded-3" 
+                      required
+                      value={packageName}
+                      onChange={(e) => setPackageName(e.target.value)}
+                    />
+                  </div>
+                  <div className="row g-2 mb-3">
+                    <div className="col-4">
+                      <label className="form-label small fw-semibold">Harga (Rp)</label>
+                      <input 
+                        type="number" 
+                        className="form-control rounded-3" 
+                        required
+                        value={packagePrice}
+                        onChange={(e) => setPackagePrice(e.target.value)}
+                      />
+                    </div>
+                    <div className="col-4">
+                      <label className="form-label small fw-semibold">Kuota (x Cek)</label>
+                      <input 
+                        type="number" 
+                        className="form-control rounded-3" 
+                        required
+                        value={packageQuota}
+                        onChange={(e) => setPackageQuota(e.target.value)}
+                      />
+                    </div>
+                    <div className="col-4">
+                      <label className="form-label small fw-semibold">Masa Aktif</label>
+                      <input 
+                        type="text" 
+                        className="form-control rounded-3" 
+                        required
+                        value={packageValidity}
+                        onChange={(e) => setPackageValidity(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="form-check form-switch mb-2">
+                    <input 
+                      className="form-check-input" 
+                      type="checkbox" 
+                      id="pkgActiveToggle"
+                      checked={packageActive}
+                      onChange={(e) => setPackageActive(e.target.checked)}
+                    />
+                    <label className="form-check-label fw-semibold" htmlFor="pkgActiveToggle">
+                      Status Paket Aktif (Ditampilkan di Website)
+                    </label>
+                  </div>
+                </div>
+                <div className="modal-footer border-0 pt-0">
+                  <button type="button" className="btn btn-secondary rounded-pill px-4" onClick={() => setPackageModal(null)}>Batal</button>
+                  <button type="submit" className="btn btn-mint-primary rounded-pill px-4 fw-bold">Simpan Paket 🚀</button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

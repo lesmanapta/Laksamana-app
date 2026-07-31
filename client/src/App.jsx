@@ -6,17 +6,20 @@ import TrackOrderPage from './pages/TrackOrderPage';
 import AdminDashboard from './pages/AdminDashboard';
 import TutorialModal from './components/TutorialModal';
 import LoginModal from './components/LoginModal';
+import PackageCheckoutModal from './components/PackageCheckoutModal';
 
 export default function App() {
   const [activePage, setActivePage] = useState('home');
   const [services, setServices] = useState([]);
   const [packages, setPackages] = useState([]);
   const [selectedService, setSelectedService] = useState(null);
+  const [selectedPackage, setSelectedPackage] = useState(null);
   const [user, setUser] = useState(null);
   const [trackOrderId, setTrackOrderId] = useState('');
   
   const [showTutorial, setShowTutorial] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  const [showPackageModal, setShowPackageModal] = useState(false);
 
   useEffect(() => {
     fetch('/api/services')
@@ -26,9 +29,7 @@ export default function App() {
         setServices([
           { id: 'cek-plagiasi', slug: 'cek-plagiasi', title: 'Cek Plagiasi No-Repository', subtitle: 'Deteksi plagiarisme dokumen', icon: 'ri-file-line', price: 10000, unit: 'file', description: 'Pengecekan keaslian tulisan cepat 24 jam tanpa simpan Turnitin repo.' },
           { id: 'cek-drillbit', slug: 'cek-drillbit', title: 'Cek Drillbit', subtitle: 'Cek plagiarisme dengan Drillbit', icon: 'ri-file-search-line', price: 12000, unit: 'file', description: 'Pemeriksaan plagiasi terpercaya khusus jurnal & skripsi.' },
-          { id: 'parafrase', slug: 'parafrase', title: 'Jasa Parafrase', subtitle: 'Ubah teks tanpa plagiarisme', icon: 'ri-loop-left-line', price: 35000, unit: 'halaman', description: 'Menurunkan skor Turnitin secara profesional.' },
-          { id: 'gptzero', slug: 'gptzero', title: 'Cek AI GPTZero', subtitle: 'Deteksi teks buatan GPT', icon: 'ri-search-eye-line', price: 15000, unit: 'file', description: 'Analisis persentase buatan AI ChatGPT, Claude, & Gemini.' },
-          { id: 'humanizer', slug: 'humanizer', title: 'Humanize File AI GPTZero', subtitle: 'Ubah teks AI terasa manusiawi', icon: 'ri-robot-2-line', price: 25000, unit: 'file', description: 'Mengubah pola sintaks AI menjadi 100% human-like.' }
+          { id: 'parafrase', slug: 'parafrase', title: 'Jasa Parafrase', subtitle: 'Ubah teks tanpa plagiarisme', icon: 'ri-loop-left-line', price: 35000, unit: 'halaman', description: 'Menurunkan skor Turnitin secara profesional.' }
         ]);
       });
 
@@ -37,9 +38,9 @@ export default function App() {
       .then(data => setPackages(data))
       .catch(() => {
         setPackages([
-          { id: 'pkg_1', name: 'Paket Hemat Laksamana (3x)', validity: '7 hari', price: 27500, targetAudience: 'Tugas kuliah & revisi cepat', quota: '3x cek plagiasi', benefits: ['Skip menu pembayaran', 'Cek sampai 800 halaman/file', 'Dapet token 3x'] },
-          { id: 'pkg_2', name: 'Paket Praktis Laksamana (10x)', validity: '14 hari', price: 89500, targetAudience: 'Deadliners skripsi & revisian', quota: '10x cek plagiasi', benefits: ['Skip menu pembayaran', 'Cek sampai 800 halaman/file', 'Dapet token 10x'] },
-          { id: 'pkg_3', name: 'Paket Sultan Laksamana (25x)', validity: '30 hari', price: 199000, targetAudience: 'Bimbingan skripsi kelompok', quota: '25x cek plagiasi', benefits: ['Prioritas Instant', 'Laporan PDF Lengkap', 'Dapet token 25x'] }
+          { id: 'pkg_hemat_3x', name: 'Paket Hemat Laksamana (3x Cek)', validity: '7 hari', price: 27500, targetAudience: 'Tugas kuliah & revisi cepat', quota: '3x cek plagiasi', benefits: ['Skip menu pembayaran', 'Cek sampai 800 halaman/file', 'Dapet token 3x'] },
+          { id: 'pkg_praktis_10x', name: 'Paket Praktis Laksamana (10x Cek)', validity: '14 hari', price: 89500, targetAudience: 'Deadliners skripsi & revisian', quota: '10x cek plagiasi', benefits: ['Skip menu pembayaran', 'Cek sampai 800 halaman/file', 'Dapet token 10x'] },
+          { id: 'pkg_pro_25x', name: 'Paket Sultan Laksamana (25x Cek)', validity: '30 hari', price: 199000, targetAudience: 'Bimbingan skripsi kelompok', quota: '25x cek plagiasi', benefits: ['Prioritas Instant', 'Laporan PDF Lengkap', 'Dapet token 25x'] }
         ]);
       });
 
@@ -60,7 +61,8 @@ export default function App() {
   };
 
   const handleSelectPackage = (pkg) => {
-    setShowLogin(true);
+    setSelectedPackage(pkg);
+    setShowPackageModal(true);
   };
 
   const handleOrderSuccess = (order) => {
@@ -141,6 +143,7 @@ export default function App() {
 
       <TutorialModal show={showTutorial} onClose={() => setShowTutorial(false)} />
       <LoginModal show={showLogin} onClose={() => setShowLogin(false)} onLoginSuccess={(usr) => setUser(usr)} />
+      <PackageCheckoutModal show={showPackageModal} pkg={selectedPackage} onClose={() => setShowPackageModal(false)} />
     </div>
   );
 }

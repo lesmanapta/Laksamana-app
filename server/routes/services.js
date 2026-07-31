@@ -1,113 +1,6 @@
 const express = require('express');
 const router = express.Router();
-
-const servicesList = [
-  {
-    id: 'cek-plagiasi',
-    slug: 'cek-plagiasi',
-    title: 'Cek Plagiasi No-Repository',
-    subtitle: 'Deteksi plagiarisme dokumen via Turnitin',
-    icon: 'ri-file-line',
-    price: 10000,
-    unit: 'file',
-    maxPages: 800,
-    description: 'Pengecekan keaslian tulisan cepat 24 jam tanpa menyimpan dokumen ke repository Turnitin.',
-    active: true
-  },
-  {
-    id: 'cek-drillbit',
-    slug: 'cek-drillbit',
-    title: 'Cek Drillbit (Per Kata)',
-    subtitle: 'Cek plagiarisme komprehensif dengan Drillbit',
-    icon: 'ri-file-search-line',
-    price: 10,
-    unit: 'kata',
-    maxPages: 500,
-    description: 'Solusi pemeriksaan plagiasi jurnal & skripsi berbasis algoritma Drillbit (Tarif Rp 10/kata).',
-    active: true
-  },
-  {
-    id: 'parafrase',
-    slug: 'parafrase',
-    title: 'Jasa Parafrase',
-    subtitle: 'Ubah teks tanpa menghilangkan makna asli',
-    icon: 'ri-loop-left-line',
-    price: 35000,
-    unit: 'halaman',
-    maxPages: 100,
-    description: 'Layanan penulisan ulang profesional untuk menurunkan skor Turnitin secara signifikan.',
-    active: true
-  },
-  {
-    id: 'gptzero',
-    slug: 'gptzero',
-    title: 'Cek AI GPTZero',
-    subtitle: 'Deteksi tulisan buatan AI (ChatGPT, Claude, Gemini)',
-    icon: 'ri-search-eye-line',
-    price: 15000,
-    unit: 'file',
-    maxPages: 300,
-    description: 'Analisis mendalam persentase konten buatan AI dengan laporan skor probabilitas detail.',
-    active: false
-  },
-  {
-    id: 'humanizer',
-    slug: 'humanizer',
-    title: 'Humanize File AI GPTZero',
-    subtitle: 'Ubah teks AI menjadi terasa sangat manusiawi',
-    icon: 'ri-robot-2-line',
-    price: 25000,
-    unit: 'file',
-    maxPages: 200,
-    description: 'Menghilangkan pola sintaksis buatan AI sehingga lolos deteksi GPTZero dan Turnitin AI.',
-    active: false
-  }
-];
-
-const packageList = [
-  {
-    id: 'pkg_hemat_3x',
-    name: 'Paket Hemat Laksamana (3x Cek)',
-    validity: '7 hari',
-    price: 27500,
-    targetAudience: 'Buat kamu yang lagi ngebut nyelesein tugas biar selesai tepat waktu',
-    quota: '3x cek plagiasi',
-    benefits: [
-      'Skip menu pembayaran',
-      'Bisa cek sampai 800 halaman/file',
-      'Dapet token 3x cek plagiasi',
-      'Hasil langsung dikirim ke WhatsApp'
-    ]
-  },
-  {
-    id: 'pkg_praktis_10x',
-    name: 'Paket Praktis Laksamana (10x Cek)',
-    validity: '14 hari',
-    price: 89500,
-    targetAudience: 'Buat kamu deadliners yang lagi ngerjain revisian dan nugas',
-    quota: '10x cek plagiasi',
-    benefits: [
-      'Skip menu pembayaran',
-      'Bisa cek sampai 800 halaman/file',
-      'Dapet token 10x cek plagiasi',
-      'Hasil langsung dikirim ke WhatsApp'
-    ]
-  },
-  {
-    id: 'pkg_pro_25x',
-    name: 'Paket Sultan Laksamana (25x Cek)',
-    validity: '30 hari',
-    price: 199000,
-    targetAudience: 'Cocok buat bimbingan skripsi kelompok atau jasa pengetikan',
-    quota: '25x cek plagiasi',
-    benefits: [
-      'Skip menu pembayaran & antrean instant',
-      'Bisa cek sampai 800 halaman/file',
-      'Dapet token 25x cek plagiasi',
-      'Laporan PDF + Highlight Sumber Lengkap'
-    ]
-  }
-];
+const { getPool } = require('../config/database');
 
 const tutorialsList = [
   {
@@ -126,14 +19,48 @@ const tutorialsList = [
   }
 ];
 
-// GET /api/services
-router.get('/', (req, res) => {
-  res.json(servicesList);
+// GET /api/services - Fetch active services from MySQL
+router.get('/', async (req, res) => {
+  try {
+    const db = getPool();
+    const [rows] = await db.query('SELECT * FROM services ORDER BY created_at ASC');
+    const formatted = rows.map(r => ({
+      id: r.id,
+      slug: r.slug,
+      title: r.title,
+      subtitle: r.subtitle,
+      icon: r.icon,
+      price: r.price,
+      unit: r.unit,
+      maxPages: r.max_pages,
+      description: r.description,
+      active: Boolean(r.active)
+    }));
+    res.json(formatted);
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal mengambil data layanan: ' + err.message });
+  }
 });
 
-// GET /api/services/packages
-router.get('/packages', (req, res) => {
-  res.json(packageList);
+// GET /api/services/packages - Fetch active packages from MySQL
+router.get('/packages', async (req, res) => {
+  try {
+    const db = getPool();
+    const [rows] = await db.query('SELECT * FROM packages WHERE active = 1 ORDER BY price ASC');
+    const formatted = rows.map(r => ({
+      id: r.id,
+      name: r.name,
+      validity: r.validity,
+      price: r.price,
+      targetAudience: r.target_audience,
+      quota: `${r.quota}x cek plagiasi`,
+      quotaNumber: r.quota,
+      benefits: typeof r.benefits === 'string' ? JSON.parse(r.benefits) : (r.benefits || [])
+    }));
+    res.json(formatted);
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal mengambil data paket: ' + err.message });
+  }
 });
 
 // GET /api/services/tutorials
