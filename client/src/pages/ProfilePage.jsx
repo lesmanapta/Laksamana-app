@@ -136,9 +136,9 @@ export default function ProfilePage({ user, onLogout, onNavigate }) {
               </div>
             </div>
 
-            <div className="nav flex-column gap-1">
+            <div className="nav flex-row flex-md-column gap-1 overflow-x-auto pb-2 pb-md-0 mb-3 mb-md-0">
               <button 
-                className={`nav-link text-start rounded-3 px-3 py-2.5 border-0 d-flex align-items-center gap-2 ${activeTab === 'ACCOUNT' ? 'fw-bold bg-mint-primary text-white' : 'text-secondary bg-transparent'}`}
+                className={`nav-link text-nowrap text-start rounded-pill rounded-md-3 px-3 py-2 py-md-2.5 border-0 d-flex align-items-center gap-2 ${activeTab === 'ACCOUNT' ? 'fw-bold bg-mint-primary text-white' : 'text-secondary bg-light bg-md-transparent'}`}
                 onClick={() => setActiveTab('ACCOUNT')}
               >
                 <i className="ri-shield-keyhole-line fs-5"></i>
@@ -146,7 +146,7 @@ export default function ProfilePage({ user, onLogout, onNavigate }) {
               </button>
 
               <button 
-                className={`nav-link text-start rounded-3 px-3 py-2.5 border-0 d-flex align-items-center gap-2 ${activeTab === 'TOKENS' ? 'fw-bold bg-mint-primary text-white' : 'text-secondary bg-transparent'}`}
+                className={`nav-link text-nowrap text-start rounded-pill rounded-md-3 px-3 py-2 py-md-2.5 border-0 d-flex align-items-center gap-2 ${activeTab === 'TOKENS' ? 'fw-bold bg-mint-primary text-white' : 'text-secondary bg-light bg-md-transparent'}`}
                 onClick={() => setActiveTab('TOKENS')}
               >
                 <i className="ri-coupon-3-line fs-5"></i>
@@ -154,21 +154,21 @@ export default function ProfilePage({ user, onLogout, onNavigate }) {
               </button>
 
               <button 
-                className={`nav-link text-start rounded-3 px-3 py-2.5 border-0 d-flex align-items-center gap-2 ${activeTab === 'ORDERS' ? 'fw-bold bg-mint-primary text-white' : 'text-secondary bg-transparent'}`}
+                className={`nav-link text-nowrap text-start rounded-pill rounded-md-3 px-3 py-2 py-md-2.5 border-0 d-flex align-items-center gap-2 ${activeTab === 'ORDERS' ? 'fw-bold bg-mint-primary text-white' : 'text-secondary bg-light bg-md-transparent'}`}
                 onClick={() => setActiveTab('ORDERS')}
               >
                 <i className="ri-history-line fs-5"></i>
                 <span>Riwayat Pesanan</span>
               </button>
 
-              <hr className="my-2" />
+              <hr className="my-2 d-none d-md-block" />
 
               <button 
                 onClick={onLogout}
-                className="nav-link text-start rounded-3 px-3 py-2.5 border-0 text-danger bg-transparent d-flex align-items-center gap-2 fw-semibold"
+                className="nav-link text-nowrap text-start rounded-pill rounded-md-3 px-3 py-2 py-md-2.5 border-0 text-danger bg-light bg-md-transparent d-flex align-items-center gap-2 fw-semibold"
               >
                 <i className="ri-logout-box-r-line fs-5"></i>
-                <span>Keluar / Logout</span>
+                <span>Keluar</span>
               </button>
             </div>
           </div>

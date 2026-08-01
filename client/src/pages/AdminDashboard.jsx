@@ -20,9 +20,11 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
   };
 
   const [activeTab, setActiveTab] = useState(getInitialTab);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const handleTabChange = (tabName) => {
     setActiveTab(tabName);
+    setMobileSidebarOpen(false);
     localStorage.setItem('adminActiveTab', tabName);
     try {
       window.history.replaceState(null, '', `#${tabName.toLowerCase()}`);
@@ -505,10 +507,27 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
   const pendingOrdersCount = orders.filter(o => o.status === 'PROCESSING' || o.status === 'PENDING_PAYMENT').length;
 
   return (
-    <div className="d-flex min-vh-100" style={{ background: '#f1f5f9', color: '#1e293b' }}>
+    <div className="d-flex flex-column flex-lg-row min-vh-100" style={{ background: '#f1f5f9', color: '#1e293b' }}>
       
+      {/* MOBILE ADMIN TOPBAR */}
+      <div className="d-lg-none bg-slate-900 text-white p-3 d-flex align-items-center justify-content-between border-bottom" style={{ background: '#0f172a', borderColor: '#1e293b' }}>
+        <div className="d-flex align-items-center gap-2">
+          <div className="bg-emerald-500 text-white rounded-3 px-2 py-0.5 fw-bold" style={{ background: '#059669' }}>🌿</div>
+          <div>
+            <h6 className="fw-bold mb-0 text-white" style={{ fontSize: '0.95rem' }}>LAKSAMANA ADMIN</h6>
+          </div>
+        </div>
+        <button 
+          onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)} 
+          className="btn btn-sm text-white rounded-3 px-2.5 py-1 border"
+          style={{ borderColor: '#334155', background: '#1e293b' }}
+        >
+          <i className={mobileSidebarOpen ? "ri-close-line fs-5" : "ri-menu-line fs-5"}></i>
+        </button>
+      </div>
+
       {/* SIDEBAR FILAMENT / ADMINLTE STYLE */}
-      <aside className="d-flex flex-column justify-content-between p-3 border-end" style={{ width: '270px', minWidth: '270px', background: '#0f172a', color: '#f8fafc' }}>
+      <aside className={`flex-column justify-content-between p-3 border-end ${mobileSidebarOpen ? 'd-flex w-100' : 'd-none d-lg-flex'}`} style={{ width: mobileSidebarOpen ? '100%' : '270px', minWidth: mobileSidebarOpen ? '100%' : '270px', background: '#0f172a', color: '#f8fafc' }}>
         <div>
           {/* Logo Header */}
           <div className="d-flex align-items-center gap-2 px-2 py-3 mb-3 border-bottom border-slate-800" style={{ borderColor: '#1e293b' }}>

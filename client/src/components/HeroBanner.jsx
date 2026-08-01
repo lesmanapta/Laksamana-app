@@ -12,33 +12,33 @@ export default function HeroBanner({ onSelectService, setActivePage }) {
       </div>
 
       {/* Modern Asymmetric Split Hero Section */}
-      <div className="bg-white rounded-5 p-4 p-md-5 border border-success border-opacity-10 shadow-sm">
+      <div className="bg-white rounded-5 p-3 p-md-5 border border-success border-opacity-10 shadow-sm">
         <div className="row align-items-center g-4">
           {/* Hero Left Column */}
-          <div className="col-12 col-lg-7">
+          <div className="col-12 col-lg-7 text-center text-lg-start">
             <div className="d-inline-flex align-items-center gap-2 pill-badge-mint mb-3">
               <i className="ri-leaf-line text-mint-primary"></i> 100% Aman & Terverifikasi No-Repository
             </div>
 
-            <h1 className="display-5 fw-extrabold text-mint-heading mb-3 lh-sm">
+            <h1 className="fs-3 fs-md-1 display-5 fw-extrabold text-mint-heading mb-3 lh-sm">
               Deteksi Plagiasi & AI Fast <span className="text-mint-primary">Tanpa Simpan File.</span>
             </h1>
 
-            <p className="text-secondary lead fs-6 mb-4 lh-base">
+            <p className="text-secondary small fs-md-6 mb-4 lh-base">
               Platform pemeriksaan keaslian dokumen skripsi, jurnal, dan tugas akhir tercepat. Terhubung langsung dengan Midtrans Payment & Notifikasi WhatsApp otomatis.
             </p>
 
-            <div className="d-flex flex-wrap gap-3 mb-4">
+            <div className="d-flex flex-column flex-sm-row justify-content-center justify-content-lg-start gap-2 gap-sm-3 mb-4">
               <button 
                 onClick={() => setActivePage('order')} 
-                className="btn btn-mint-primary btn-lg rounded-pill px-5 py-3 fs-6 shadow-sm"
+                className="btn btn-mint-primary rounded-pill px-4 px-md-5 py-2.5 py-md-3 fs-6 shadow-sm w-100 w-sm-auto"
               >
                 Mulai Cek Dokumen <i className="ri-arrow-right-line ms-2"></i>
               </button>
 
               <button 
                 onClick={() => setActivePage('track')} 
-                className="btn btn-mint-outline btn-lg rounded-pill px-4 py-3 fs-6"
+                className="btn btn-mint-outline rounded-pill px-4 py-2.5 py-md-3 fs-6 w-100 w-sm-auto"
               >
                 <i className="ri-search-line me-2"></i> Lacak Pesanan
               </button>

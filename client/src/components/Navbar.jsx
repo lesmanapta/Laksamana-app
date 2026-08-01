@@ -13,6 +13,10 @@ export default function Navbar({ activePage, setActivePage, user, onOpenLogin, o
     if (window.location.pathname !== targetPath) {
       window.history.pushState({ page: pageName }, '', targetPath);
     }
+    const navContent = document.getElementById('navContent');
+    if (navContent && navContent.classList.contains('show')) {
+      navContent.classList.remove('show');
+    }
   };
 
   const handleLogoutClick = () => {
