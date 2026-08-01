@@ -379,13 +379,14 @@ router.post('/orders/:id/approve-manual', async (req, res) => {
 router.get('/settings', async (req, res) => {
   try {
     const db = getPool();
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS system_settings (
-        setting_key VARCHAR(100) PRIMARY KEY,
-        setting_value TEXT NOT NULL,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    `);
+    try {
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS system_settings (
+          setting_key VARCHAR(100) PRIMARY KEY,
+          setting_value TEXT NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+      `);
+    } catch (e) {}
 
     const [rows] = await db.query('SELECT setting_key, setting_value FROM system_settings');
     const settings = {
@@ -415,34 +416,38 @@ router.get('/settings', async (req, res) => {
       midtrans_is_production: 'false'
     };
 
-    rows.forEach(r => { 
-      if (r.setting_key && r.setting_value !== undefined) {
-        settings[r.setting_key] = r.setting_value; 
-      }
-    });
+    if (Array.isArray(rows)) {
+      rows.forEach(r => { 
+        if (r.setting_key && r.setting_value !== undefined) {
+          settings[r.setting_key] = r.setting_value; 
+        }
+      });
+    }
 
-    res.json({ settings });
+    res.json({ success: true, settings });
   } catch (err) {
-    res.status(500).json({ error: 'Gagal mengambil pengaturan sistem: ' + err.message });
+    console.error('❌ Error fetching system settings:', err);
+    res.json({ success: false, error: 'Gagal mengambil pengaturan sistem: ' + err.message, settings: {} });
   }
 });
 
 // POST /api/admin/settings - Save system settings
 router.post('/settings', async (req, res) => {
-  const { settings } = req.body;
+  const { settings } = req.body || {};
   if (!settings || typeof settings !== 'object') {
-    return res.status(400).json({ error: 'Settings object required' });
+    return res.json({ success: false, error: 'Settings object required' });
   }
 
   try {
     const db = getPool();
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS system_settings (
-        setting_key VARCHAR(100) PRIMARY KEY,
-        setting_value TEXT NOT NULL,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    `);
+    try {
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS system_settings (
+          setting_key VARCHAR(100) PRIMARY KEY,
+          setting_value TEXT NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+      `);
+    } catch (e) {}
 
     for (const [key, val] of Object.entries(settings)) {
       if (val !== undefined && val !== null) {
@@ -452,10 +457,10 @@ router.post('/settings', async (req, res) => {
         `, [key, String(val)]);
       }
     }
-    res.json({ message: 'Pengaturan & credentials akun berhasil disimpan ke database!' });
+    res.json({ success: true, message: 'Pengaturan & credentials akun berhasil disimpan ke database!' });
   } catch (err) {
     console.error('❌ Error saving system settings:', err);
-    res.status(500).json({ error: 'Gagal menyimpan pengaturan: ' + err.message });
+    res.json({ success: false, error: 'Gagal menyimpan pengaturan: ' + err.message });
   }
 });
 

@@ -125,10 +125,12 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
       try {
         data = JSON.parse(text);
       } catch (jsonErr) {
-        throw new Error('Server cPanel belum di-restart. Silakan buka cPanel -> Setup Node.js App -> Klik "Restart Application".');
+        throw new Error('Gagal memproses server response. Silakan Restart Application di cPanel Node.js App.');
       }
-      if (!res.ok) throw new Error(data.error || 'Gagal menyimpan pengaturan');
-      setMessage(`✅ ${data.message}`);
+      if (data && data.success === false) {
+        throw new Error(data.error || 'Gagal menyimpan pengaturan ke database MySQL.');
+      }
+      setMessage(`✅ ${data.message || 'Pengaturan berhasil disimpan!'}`);
       await fetchAdminData();
     } catch (err) {
       setMessage(`❌ ${err.message}`);
