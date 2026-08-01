@@ -510,20 +510,42 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
     <div className="d-flex flex-column flex-lg-row min-vh-100" style={{ background: '#f1f5f9', color: '#1e293b' }}>
       
       {/* MOBILE ADMIN TOPBAR */}
-      <div className="d-lg-none bg-slate-900 text-white p-3 d-flex align-items-center justify-content-between border-bottom" style={{ background: '#0f172a', borderColor: '#1e293b' }}>
-        <div className="d-flex align-items-center gap-2">
-          <div className="bg-emerald-500 text-white rounded-3 px-2 py-0.5 fw-bold" style={{ background: '#059669' }}>🌿</div>
-          <div>
-            <h6 className="fw-bold mb-0 text-white" style={{ fontSize: '0.95rem' }}>LAKSAMANA ADMIN</h6>
+      <div className="d-lg-none bg-slate-900 text-white p-2.5 p-sm-3 border-bottom" style={{ background: '#0f172a', borderColor: '#1e293b' }}>
+        <div className="d-flex align-items-center justify-content-between mb-2">
+          <div className="d-flex align-items-center gap-2">
+            <div className="bg-emerald-500 text-white rounded-3 px-2 py-0.5 fw-bold" style={{ background: '#059669' }}>🌿</div>
+            <div>
+              <h6 className="fw-bold mb-0 text-white" style={{ fontSize: '0.9rem' }}>LAKSAMANA ADMIN</h6>
+            </div>
           </div>
+          <button 
+            onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)} 
+            className="btn btn-sm text-white rounded-3 px-2.5 py-1 border"
+            style={{ borderColor: '#334155', background: '#1e293b' }}
+          >
+            <i className={mobileSidebarOpen ? "ri-close-line fs-5" : "ri-menu-line fs-5"}></i> Menu
+          </button>
         </div>
-        <button 
-          onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)} 
-          className="btn btn-sm text-white rounded-3 px-2.5 py-1 border"
-          style={{ borderColor: '#334155', background: '#1e293b' }}
-        >
-          <i className={mobileSidebarOpen ? "ri-close-line fs-5" : "ri-menu-line fs-5"}></i>
-        </button>
+
+        {/* Mobile Horizontal Quick Tab Bar */}
+        <div className="d-flex gap-1 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+          {[
+            { id: 'ORDERS', label: '📋 Pesanan', count: pendingOrdersCount },
+            { id: 'SERVICES', label: '🛠️ Layanan', count: servicesList.length },
+            { id: 'PACKAGES', label: '📦 Paket', count: packagesList.length },
+            { id: 'TOKENS', label: '🎟️ Token', count: tokensList.length },
+            { id: 'USERS', label: '👥 User', count: usersList.length }
+          ].map(t => (
+            <button
+              key={t.id}
+              onClick={() => handleTabChange(t.id)}
+              className={`btn btn-sm rounded-pill px-2.5 py-1 text-nowrap border-0 ${activeTab === t.id ? 'bg-emerald-500 text-white fw-bold' : 'text-slate-300'}`}
+              style={{ fontSize: '0.78rem', ...(activeTab === t.id ? { background: '#059669' } : { background: '#1e293b', color: '#cbd5e1' }) }}
+            >
+              {t.label} {t.count > 0 && <span className="badge rounded-pill bg-white text-dark ms-1" style={{ fontSize: '0.62rem' }}>{t.count}</span>}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* SIDEBAR FILAMENT / ADMINLTE STYLE */}
@@ -634,13 +656,13 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <main className="flex-grow-1 p-4 overflow-y-auto" style={{ background: '#f8fafc' }}>
+      <main className="flex-grow-1 p-2 p-sm-3 p-md-4 overflow-x-hidden" style={{ background: '#f8fafc' }}>
         
         {/* Topbar */}
-        <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between mb-4 pb-3 border-bottom bg-white p-3 rounded-4 shadow-sm">
+        <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between mb-3 mb-md-4 pb-2 pb-md-3 border-bottom bg-white p-3 rounded-4 shadow-sm">
           <div>
-            <span className="small text-muted text-uppercase fw-semibold" style={{ fontSize: '0.75rem' }}>System Dashboard</span>
-            <h4 className="fw-bold mb-0 text-slate-800">
+            <span className="small text-muted text-uppercase fw-semibold" style={{ fontSize: '0.7rem' }}>System Dashboard</span>
+            <h4 className="fw-bold mb-0 text-slate-800 fs-5 fs-md-4">
               {activeTab === 'ORDERS' && '📋 Kelola Pesanan Dokumen'}
               {activeTab === 'SERVICES' && '🛠️ Kelola Layanan & Tarif'}
               {activeTab === 'PACKAGES' && '📦 Kelola Paket Kuota'}
@@ -649,68 +671,68 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
             </h4>
           </div>
 
-          <div className="d-flex align-items-center gap-2 mt-3 mt-md-0">
-            <button onClick={fetchAdminData} className="btn btn-sm btn-outline-secondary rounded-pill px-3">
+          <div className="d-flex align-items-center gap-2 mt-2 mt-md-0">
+            <button onClick={fetchAdminData} className="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 text-nowrap" style={{ fontSize: '0.8rem' }}>
               <i className={`ri-refresh-line me-1 ${loading ? 'spin' : ''}`}></i> Refresh Data
             </button>
           </div>
         </div>
 
-        {message && <div className="alert alert-info rounded-4 mb-4 shadow-sm">{message}</div>}
+        {message && <div className="alert alert-info rounded-4 mb-3 mb-md-4 shadow-sm p-2.5 small">{message}</div>}
 
-        {/* STATS WIDGET ROW (Filament Style) */}
-        <div className="row g-3 mb-4">
-          <div className="col-12 col-sm-6 col-xl-3">
-            <div className="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-4 border-emerald-500" style={{ borderLeftColor: '#10b981 !important' }}>
+        {/* STATS WIDGET ROW (2x2 on Mobile, 4x1 on Desktop) */}
+        <div className="row g-2 g-md-3 mb-3 mb-md-4">
+          <div className="col-6 col-xl-3">
+            <div className="card border-0 shadow-sm rounded-4 p-2.5 p-md-3 bg-white border-start border-4 border-emerald-500 h-100" style={{ borderLeftColor: '#10b981 !important' }}>
               <div className="d-flex align-items-center justify-content-between">
                 <div>
-                  <span className="small text-muted font-semibold d-block">Total Pendapatan</span>
-                  <h5 className="fw-extrabold text-slate-800 mb-0 mt-1">Rp {totalRevenue.toLocaleString('id-ID')}</h5>
+                  <span className="text-muted d-block" style={{ fontSize: '0.72rem' }}>Total Pendapatan</span>
+                  <h6 className="fw-extrabold text-slate-800 mb-0 mt-1 fs-6 fs-md-5">Rp {totalRevenue.toLocaleString('id-ID')}</h6>
                 </div>
-                <div className="p-3 rounded-circle bg-emerald-50 text-emerald-600" style={{ background: '#ecfdf5', color: '#059669' }}>
-                  <i className="ri-wallet-3-line fs-4"></i>
+                <div className="p-2 p-md-3 rounded-circle bg-emerald-50 text-emerald-600 d-none d-sm-flex" style={{ background: '#ecfdf5', color: '#059669' }}>
+                  <i className="ri-wallet-3-line fs-5 fs-md-4"></i>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="col-12 col-sm-6 col-xl-3">
-            <div className="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-4 border-blue-500" style={{ borderLeftColor: '#3b82f6 !important' }}>
+          <div className="col-6 col-xl-3">
+            <div className="card border-0 shadow-sm rounded-4 p-2.5 p-md-3 bg-white border-start border-4 border-blue-500 h-100" style={{ borderLeftColor: '#3b82f6 !important' }}>
               <div className="d-flex align-items-center justify-content-between">
                 <div>
-                  <span className="small text-muted font-semibold d-block">Total Pesanan</span>
-                  <h5 className="fw-extrabold text-slate-800 mb-0 mt-1">{orders.length} Dokumen</h5>
+                  <span className="text-muted d-block" style={{ fontSize: '0.72rem' }}>Total Pesanan</span>
+                  <h6 className="fw-extrabold text-slate-800 mb-0 mt-1 fs-6 fs-md-5">{orders.length} Dokumen</h6>
                 </div>
-                <div className="p-3 rounded-circle bg-blue-50 text-blue-600" style={{ background: '#eff6ff', color: '#2563eb' }}>
-                  <i className="ri-file-text-line fs-4"></i>
+                <div className="p-2 p-md-3 rounded-circle bg-blue-50 text-blue-600 d-none d-sm-flex" style={{ background: '#eff6ff', color: '#2563eb' }}>
+                  <i className="ri-file-text-line fs-5 fs-md-4"></i>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="col-12 col-sm-6 col-xl-3">
-            <div className="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-4 border-amber-500" style={{ borderLeftColor: '#f59e0b !important' }}>
+          <div className="col-6 col-xl-3">
+            <div className="card border-0 shadow-sm rounded-4 p-2.5 p-md-3 bg-white border-start border-4 border-amber-500 h-100" style={{ borderLeftColor: '#f59e0b !important' }}>
               <div className="d-flex align-items-center justify-content-between">
                 <div>
-                  <span className="small text-muted font-semibold d-block">Perlu Diproses</span>
-                  <h5 className="fw-extrabold text-amber-600 mb-0 mt-1">{pendingOrdersCount} Dokumen</h5>
+                  <span className="text-muted d-block" style={{ fontSize: '0.72rem' }}>Perlu Diproses</span>
+                  <h6 className="fw-extrabold text-amber-600 mb-0 mt-1 fs-6 fs-md-5">{pendingOrdersCount} Dokumen</h6>
                 </div>
-                <div className="p-3 rounded-circle bg-amber-50 text-amber-600" style={{ background: '#fffbeb', color: '#d97706' }}>
-                  <i className="ri-timer-line fs-4"></i>
+                <div className="p-2 p-md-3 rounded-circle bg-amber-50 text-amber-600 d-none d-sm-flex" style={{ background: '#fffbeb', color: '#d97706' }}>
+                  <i className="ri-timer-line fs-5 fs-md-4"></i>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="col-12 col-sm-6 col-xl-3">
-            <div className="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-4 border-purple-500" style={{ borderLeftColor: '#a855f7 !important' }}>
+          <div className="col-6 col-xl-3">
+            <div className="card border-0 shadow-sm rounded-4 p-2.5 p-md-3 bg-white border-start border-4 border-purple-500 h-100" style={{ borderLeftColor: '#a855f7 !important' }}>
               <div className="d-flex align-items-center justify-content-between">
                 <div>
-                  <span className="small text-muted font-semibold d-block">Token Paket Active</span>
-                  <h5 className="fw-extrabold text-purple-600 mb-0 mt-1">{tokensList.length} Token</h5>
+                  <span className="text-muted d-block" style={{ fontSize: '0.72rem' }}>Token Active</span>
+                  <h6 className="fw-extrabold text-purple-600 mb-0 mt-1 fs-6 fs-md-5">{tokensList.length} Token</h6>
                 </div>
-                <div className="p-3 rounded-circle bg-purple-50 text-purple-600" style={{ background: '#faf5ff', color: '#9333ea' }}>
-                  <i className="ri-coupon-3-line fs-4"></i>
+                <div className="p-2 p-md-3 rounded-circle bg-purple-50 text-purple-600 d-none d-sm-flex" style={{ background: '#faf5ff', color: '#9333ea' }}>
+                  <i className="ri-coupon-3-line fs-5 fs-md-4"></i>
                 </div>
               </div>
             </div>
