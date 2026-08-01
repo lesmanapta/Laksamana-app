@@ -45,7 +45,7 @@ router.get('/', async (req, res) => {
       unit: r.unit,
       maxPages: r.max_pages,
       description: r.description,
-      active: (r.id === 'cek-plagiasi' || r.id === 'parafrase' || r.slug === 'cek-plagiasi' || r.slug === 'parafrase') ? Boolean(r.active) : false
+      active: r.active === 1 || r.active === true || r.active === '1'
     }));
     res.json(formatted);
   } catch (err) {

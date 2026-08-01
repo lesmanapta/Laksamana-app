@@ -248,10 +248,15 @@ router.post('/create', cpUpload, async (req, res) => {
   const fileSize = mainFile ? mainFile.size : 30000;
   const targetSlug = serviceSlug || 'cek-plagiasi';
 
-  // Check if target service is allowed & active
-  const ALLOWED_SLUGS = ['cek-plagiasi', 'parafrase'];
-  if (!ALLOWED_SLUGS.includes(targetSlug)) {
-    return res.status(400).json({ error: 'Layanan ini saat ini sedang tidak aktif / belum tersedia saat ini.' });
+  // Check if target service is active in database
+  try {
+    const db = getPool();
+    const [svcRows] = await db.query('SELECT title, active FROM services WHERE slug = ? OR id = ?', [targetSlug, targetSlug]);
+    if (svcRows.length === 0 || svcRows[0].active === 0 || svcRows[0].active === false) {
+      return res.status(400).json({ error: `Layanan "${svcRows[0] ? svcRows[0].title : targetSlug}" saat ini sedang tidak aktif / belum tersedia.` });
+    }
+  } catch (svcErr) {
+    console.error('Error checking service active state:', svcErr.message);
   }
 
   let calculatedWordCount = Math.max(150, Math.ceil(fileSize / 18));
