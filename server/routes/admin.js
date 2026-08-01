@@ -377,8 +377,18 @@ router.post('/orders/:id/approve-manual', async (req, res) => {
 
 // GET /api/admin/settings - Fetch all system settings
 router.get('/settings', async (req, res) => {
+// GET /api/admin/settings - Fetch system settings
+router.get('/settings', async (req, res) => {
   try {
     const db = getPool();
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS system_settings (
+        setting_key VARCHAR(100) PRIMARY KEY,
+        setting_value TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
     const [rows] = await db.query('SELECT setting_key, setting_value FROM system_settings');
     const settings = {
       manual_payment_enabled: 'true',
@@ -387,9 +397,32 @@ router.get('/settings', async (req, res) => {
       manual_ewallet_number: '08117676477',
       manual_ewallet_types: 'DANA, GoPay, OVO, ShopeePay',
       manual_qris_url: '',
-      manual_qris_info: 'Scan QRIS Manual Laksamana lalu kirimkan bukti transfer ke WhatsApp 08117676477.'
+      manual_qris_info: 'Scan QRIS Manual Laksamana lalu kirimkan bukti transfer ke WhatsApp 08117676477.',
+      wa_gateway_token: '',
+      wa_gateway_url: 'https://api.fonnte.com/send',
+      wa_admin_number: '08117676477',
+      wa_gateway_enabled: 'true',
+      turnitin_email: '',
+      turnitin_password: '',
+      turnitin_class_id: '',
+      turnitin_enrollment_key: '',
+      turnitin_auto_check: 'true',
+      drillbit_user: '',
+      drillbit_pass: '',
+      drillbit_url: 'https://online.drillbitplagiarismcheck.com/user/files',
+      drillbit_auto_check: 'true',
+      midtrans_merchant_id: 'G159494348',
+      midtrans_server_key: 'SB-Mid-server-WfiGS2ZDUkYivS7FBUPQPAMr',
+      midtrans_client_key: 'SB-Mid-client-6sGTeuzOa30cjfgw',
+      midtrans_is_production: 'false'
     };
-    rows.forEach(r => { settings[r.setting_key] = r.setting_value; });
+
+    rows.forEach(r => { 
+      if (r.setting_key && r.setting_value !== undefined) {
+        settings[r.setting_key] = r.setting_value; 
+      }
+    });
+
     res.json({ settings });
   } catch (err) {
     res.status(500).json({ error: 'Gagal mengambil pengaturan sistem: ' + err.message });
@@ -405,14 +438,26 @@ router.post('/settings', async (req, res) => {
 
   try {
     const db = getPool();
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS system_settings (
+        setting_key VARCHAR(100) PRIMARY KEY,
+        setting_value TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
     for (const [key, val] of Object.entries(settings)) {
-      await db.query(`
-        INSERT INTO system_settings (setting_key, setting_value)
-        VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value);
-      `, [key, String(val)]);
+      if (val !== undefined && val !== null) {
+        await db.query(`
+          INSERT INTO system_settings (setting_key, setting_value)
+          VALUES (?, ?) 
+          ON DUPLICATE KEY UPDATE setting_value = ?;
+        `, [key, String(val), String(val)]);
+      }
     }
-    res.json({ message: 'Pengaturan pembayaran & sistem berhasil diperbarui!' });
+    res.json({ message: 'Pengaturan & credentials akun berhasil disimpan ke database!' });
   } catch (err) {
+    console.error('❌ Error saving system settings:', err);
     res.status(500).json({ error: 'Gagal menyimpan pengaturan: ' + err.message });
   }
 });
