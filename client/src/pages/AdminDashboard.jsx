@@ -83,36 +83,39 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
   const fetchAdminData = async () => {
     setLoading(true);
     const token = localStorage.getItem('accessToken');
-    const authHeader = { 'Authorization': `Bearer ${token || ''}` };
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+
     try {
-      const resOrders = await fetch('/api/admin/orders', { headers: authHeader });
-      const dataOrders = await resOrders.json();
-      if (!resOrders.ok) {
-        console.error('[Admin] /api/admin/orders error:', resOrders.status, dataOrders);
-        setMessage(`❌ Gagal memuat data: ${dataOrders.error || resOrders.status}. Silakan logout dan login ulang.`);
-        setLoading(false);
-        return;
+      const [resOrders, resServices, resPackages, resUsers, resTokens] = await Promise.allSettled([
+        fetch('/api/admin/orders', { headers }),
+        fetch('/api/admin/services', { headers }),
+        fetch('/api/admin/packages', { headers }),
+        fetch('/api/admin/users', { headers }),
+        fetch('/api/admin/tokens', { headers })
+      ]);
+
+      if (resOrders.status === 'fulfilled' && resOrders.value.ok) {
+        const data = await resOrders.value.json();
+        setOrders(data.orders || []);
       }
-      setOrders(dataOrders.orders || []);
-
-      const resServices = await fetch('/api/admin/services', { headers: authHeader });
-      const dataServices = await resServices.json();
-      setServicesList(dataServices.services || []);
-
-      const resPackages = await fetch('/api/admin/packages', { headers: authHeader });
-      const dataPackages = await resPackages.json();
-      setPackagesList(dataPackages.packages || []);
-
-      const resUsers = await fetch('/api/admin/users', { headers: authHeader });
-      const dataUsers = await resUsers.json();
-      setUsersList(dataUsers.users || []);
-
-      const resTokens = await fetch('/api/admin/tokens', { headers: authHeader });
-      const dataTokens = await resTokens.json();
-      setTokensList(dataTokens.tokens || []);
+      if (resServices.status === 'fulfilled' && resServices.value.ok) {
+        const data = await resServices.value.json();
+        setServicesList(data.services || []);
+      }
+      if (resPackages.status === 'fulfilled' && resPackages.value.ok) {
+        const data = await resPackages.value.json();
+        setPackagesList(data.packages || []);
+      }
+      if (resUsers.status === 'fulfilled' && resUsers.value.ok) {
+        const data = await resUsers.value.json();
+        setUsersList(data.users || []);
+      }
+      if (resTokens.status === 'fulfilled' && resTokens.value.ok) {
+        const data = await resTokens.value.json();
+        setTokensList(data.tokens || []);
+      }
     } catch (err) {
       console.error('Error fetching admin data:', err);
-      setMessage(`❌ Error koneksi ke server: ${err.message}`);
     } finally {
       setLoading(false);
     }
