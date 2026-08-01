@@ -5,10 +5,6 @@ const path = require('path');
 const fs = require('fs');
 const { getPool } = require('../config/database');
 const { sendWhatsAppMessage } = require('../services/whatsappService');
-const { adminMiddleware } = require('../middleware/auth');
-
-// Apply adminMiddleware to ALL admin routes (requires valid JWT + admin/superadmin role)
-router.use(adminMiddleware);
 
 const uploadDir = path.join(__dirname, '../uploads/reports');
 if (!fs.existsSync(uploadDir)) {
