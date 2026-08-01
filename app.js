@@ -53,24 +53,13 @@ app.get('/api/health', (req, res) => {
 // Serve React Frontend (client/dist)
 const clientBuildPath = path.join(__dirname, 'client/dist');
 if (fs.existsSync(clientBuildPath)) {
-  app.use(express.static(clientBuildPath, {
-    setHeaders: (res, filepath) => {
-      if (filepath.endsWith('.html')) {
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      }
-    }
-  }));
+  app.use(express.static(clientBuildPath));
 
   // All non-API routes serve the React SPA
   app.get('*', (req, res) => {
-    if (req.path.startsWith('/api/')) {
-      return res.status(404).json({ error: 'API endpoint tidak ditemukan' });
+    if (!req.path.startsWith('/api/')) {
+      res.sendFile(path.join(clientBuildPath, 'index.html'));
     }
-    if (/\.[a-zA-Z0-9]+$/.test(req.path)) {
-      return res.status(404).send('Asset Not Found');
-    }
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.sendFile(path.join(clientBuildPath, 'index.html'));
   });
 }
 
