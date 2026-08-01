@@ -32,9 +32,9 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
   const [loading, setLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   
-  // Super Admin Login state (Default: Lesmana.pta@gmail.com / Manto1909@)
-  const [adminEmail, setAdminEmail] = useState('Lesmana.pta@gmail.com');
-  const [adminPassword, setAdminPassword] = useState('Manto1909@');
+  // Super Admin Login state
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
 
@@ -75,26 +75,33 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
 
   const isSuperAdmin = user && (user.role === 'superadmin' || user.role === 'admin');
 
+  const getAdminHeaders = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${localStorage.getItem('accessToken') || ''}`
+  });
+
   const fetchAdminData = async () => {
     setLoading(true);
+    const token = localStorage.getItem('accessToken');
+    const authHeader = { 'Authorization': `Bearer ${token || ''}` };
     try {
-      const resOrders = await fetch('/api/admin/orders');
+      const resOrders = await fetch('/api/admin/orders', { headers: authHeader });
       const dataOrders = await resOrders.json();
       setOrders(dataOrders.orders || []);
 
-      const resServices = await fetch('/api/admin/services');
+      const resServices = await fetch('/api/admin/services', { headers: authHeader });
       const dataServices = await resServices.json();
       setServicesList(dataServices.services || []);
 
-      const resPackages = await fetch('/api/admin/packages');
+      const resPackages = await fetch('/api/admin/packages', { headers: authHeader });
       const dataPackages = await resPackages.json();
       setPackagesList(dataPackages.packages || []);
 
-      const resUsers = await fetch('/api/admin/users');
+      const resUsers = await fetch('/api/admin/users', { headers: authHeader });
       const dataUsers = await resUsers.json();
       setUsersList(dataUsers.users || []);
 
-      const resTokens = await fetch('/api/admin/tokens');
+      const resTokens = await fetch('/api/admin/tokens', { headers: authHeader });
       const dataTokens = await resTokens.json();
       setTokensList(dataTokens.tokens || []);
     } catch (err) {
@@ -203,7 +210,7 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
   const handleDeleteService = async (svcId, svcTitle) => {
     if (!window.confirm(`Hapus layanan "${svcTitle}"?`)) return;
     try {
-      const res = await fetch(`/api/admin/services/${svcId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/services/${svcId}`, { method: 'DELETE', headers: getAdminHeaders() });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal menghapus layanan');
       setMessage(`✅ ${data.message}`);
@@ -265,7 +272,7 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
   const handleDeletePackage = async (pkgId, pkgName) => {
     if (!window.confirm(`Hapus paket "${pkgName}"?`)) return;
     try {
-      const res = await fetch(`/api/admin/packages/${pkgId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/packages/${pkgId}`, { method: 'DELETE', headers: getAdminHeaders() });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal menghapus paket');
       setMessage(`✅ ${data.message}`);
@@ -279,7 +286,7 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
   const handleVerifyUser = async (userId, userEmail) => {
     if (!window.confirm(`Aktivasi akun user ${userEmail}?`)) return;
     try {
-      const res = await fetch(`/api/admin/users/${userId}/verify`, { method: 'POST' });
+      const res = await fetch(`/api/admin/users/${userId}/verify`, { method: 'POST', headers: getAdminHeaders() });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal mengaktivasi user');
       setMessage(`✅ ${data.message}`);
@@ -293,7 +300,7 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
     try {
       const res = await fetch(`/api/admin/users/${userId}/role`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({ role: newRole })
       });
       const data = await res.json();
@@ -308,7 +315,7 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
   const handleDeleteUser = async (userId, userEmail) => {
     if (!window.confirm(`Hapus akun user ${userEmail}?`)) return;
     try {
-      const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE', headers: getAdminHeaders() });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal menghapus user');
       setMessage(`✅ ${data.message}`);
@@ -326,7 +333,7 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
     try {
       const res = await fetch('/api/admin/tokens/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({
           customCode: customTokenCode,
           packageName: tokenPkgName,
@@ -352,7 +359,7 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
   const handleDeleteToken = async (tokenCode) => {
     if (!window.confirm(`Hapus/batalkan token ${tokenCode}?`)) return;
     try {
-      const res = await fetch(`/api/admin/tokens/${tokenCode}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/tokens/${tokenCode}`, { method: 'DELETE', headers: getAdminHeaders() });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal menghapus token');
       setMessage(`✅ ${data.message}`);
@@ -378,8 +385,10 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
     }
 
     try {
+      const token = localStorage.getItem('accessToken');
       const res = await fetch(`/api/admin/orders/${selectedOrder.id}/complete`, {
         method: 'POST',
+        headers: { 'Authorization': `Bearer ${token || ''}` },
         body: formData
       });
       const data = await res.json();
@@ -466,12 +475,6 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
                 {loginLoading ? 'Memverifikasi...' : '🔑 Masuk Control Panel'}
               </button>
             </form>
-
-            <div className="p-3 rounded-3 mt-4 text-start small border border-slate-700" style={{ background: '#0f172a', borderColor: '#334155' }}>
-              <div className="fw-bold mb-1" style={{ color: '#34d399' }}>💡 Super Admin Default:</div>
-              <div className="font-monospace text-slate-300" style={{ color: '#cbd5e1' }}>Email: <code>Lesmana.pta@gmail.com</code></div>
-              <div className="font-monospace text-slate-300" style={{ color: '#cbd5e1' }}>Password: <code>Manto1909@</code></div>
-            </div>
 
             {onNavigateHome && (
               <button 

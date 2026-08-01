@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const { getPool } = require('../config/database');
 
 const { runTurnitinWorker } = require('../services/turnitinWorker');
@@ -508,8 +509,21 @@ router.post('/confirm-payment', async (req, res) => {
 
 // POST /api/orders/midtrans-webhook
 router.post('/midtrans-webhook', async (req, res) => {
-  const { order_id, transaction_status, fraud_status } = req.body;
+  const { order_id, transaction_status, fraud_status, status_code, gross_amount, signature_key } = req.body;
   const db = getPool();
+
+  // Verify Midtrans signature to prevent fake payment notifications
+  const serverKey = process.env.MIDTRANS_SERVER_KEY || '';
+  if (serverKey && order_id && status_code && gross_amount && signature_key) {
+    const expectedSignature = crypto
+      .createHash('sha512')
+      .update(`${order_id}${status_code}${gross_amount}${serverKey}`)
+      .digest('hex');
+    if (expectedSignature !== signature_key) {
+      console.warn(`⚠️ [WEBHOOK] Invalid signature for order ${order_id}. Possible fake notification rejected.`);
+      return res.status(403).json({ error: 'Invalid signature' });
+    }
+  }
   
   const [trxRows] = await db.query('SELECT * FROM transactions WHERE id = ?', [order_id]);
   let targetOrderId = order_id;
