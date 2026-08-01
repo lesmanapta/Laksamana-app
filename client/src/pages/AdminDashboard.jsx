@@ -87,6 +87,12 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
     try {
       const resOrders = await fetch('/api/admin/orders', { headers: authHeader });
       const dataOrders = await resOrders.json();
+      if (!resOrders.ok) {
+        console.error('[Admin] /api/admin/orders error:', resOrders.status, dataOrders);
+        setMessage(`❌ Gagal memuat data: ${dataOrders.error || resOrders.status}. Silakan logout dan login ulang.`);
+        setLoading(false);
+        return;
+      }
       setOrders(dataOrders.orders || []);
 
       const resServices = await fetch('/api/admin/services', { headers: authHeader });
@@ -106,6 +112,7 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
       setTokensList(dataTokens.tokens || []);
     } catch (err) {
       console.error('Error fetching admin data:', err);
+      setMessage(`❌ Error koneksi ke server: ${err.message}`);
     } finally {
       setLoading(false);
     }
