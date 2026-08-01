@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 
 export default function OrderPage({ selectedService, services, onOrderSuccess }) {
-  const isServiceActive = (s) => s && (s.active === true || s.active === 1 || s.active === '1');
+  const ALLOWED_ACTIVE_SLUGS = ['cek-plagiasi', 'parafrase'];
+  const isServiceActive = (s) => s && (s.active === true || s.active === 1 || s.active === '1') && ALLOWED_ACTIVE_SLUGS.includes(s.slug || s.id);
   const activeServicesList = services.filter(isServiceActive);
   const initialService = (selectedService && isServiceActive(selectedService)) 
     ? selectedService 
-    : (activeServicesList[0] || services[0]);
+    : (activeServicesList[0] || services.find(s => s.id === 'cek-plagiasi'));
 
   const [activeService, setActiveService] = useState(initialService);
   const [file, setFile] = useState(null);
@@ -202,7 +203,7 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
                     }
                   }}
                 >
-                  {(activeServicesList.length > 0 ? activeServicesList : services.filter(isServiceActive)).map(s => (
+                  {activeServicesList.map(s => (
                     <option key={s.id} value={s.id}>
                       {s.title} — {s.unit === 'kata' ? 'Rp 10 / kata' : `Rp ${s.price.toLocaleString('id-ID')} / ${s.unit}`}
                     </option>
