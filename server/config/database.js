@@ -69,7 +69,7 @@ async function seedDefaultData(poolConnection) {
       console.log('🌱 [DATABASE SEEDER] Default packages inserted into MySQL.');
     }
 
-    // 5. Seed System Settings
+    // 5. Seed System Settings (Payment, WA Gateway, Turnitin, Drillbit, Midtrans)
     const defaultSettings = [
       ['manual_payment_enabled', 'true'],
       ['manual_wa_number', '08117676477'],
@@ -77,7 +77,32 @@ async function seedDefaultData(poolConnection) {
       ['manual_ewallet_number', '08117676477'],
       ['manual_ewallet_types', 'DANA, GoPay, OVO, ShopeePay'],
       ['manual_qris_url', ''],
-      ['manual_qris_info', 'Scan QRIS Manual Laksamana lalu kirimkan bukti transfer ke WhatsApp 08117676477.']
+      ['manual_qris_info', 'Scan QRIS Manual Laksamana lalu kirimkan bukti transfer ke WhatsApp 08117676477.'],
+
+      // WhatsApp / Fonnte Gateway Config
+      ['wa_gateway_token', process.env.WA_GATEWAY_TOKEN || ''],
+      ['wa_gateway_url', process.env.WA_GATEWAY_URL || 'https://api.fonnte.com/send'],
+      ['wa_admin_number', process.env.ADMIN_WA || '08117676477'],
+      ['wa_gateway_enabled', 'true'],
+
+      // Turnitin Account & Credentials
+      ['turnitin_email', process.env.TURNITIN_EMAIL || ''],
+      ['turnitin_password', process.env.TURNITIN_PASSWORD || ''],
+      ['turnitin_class_id', process.env.TURNITIN_CLASS_ID || ''],
+      ['turnitin_enrollment_key', process.env.TURNITIN_ENROLLMENT_KEY || ''],
+      ['turnitin_auto_check', 'true'],
+
+      // Drillbit Account & Credentials
+      ['drillbit_user', process.env.DRILLBIT_USER || ''],
+      ['drillbit_pass', process.env.DRILLBIT_PASS || ''],
+      ['drillbit_url', process.env.DRILLBIT_URL || 'https://online.drillbitplagiarismcheck.com/user/files'],
+      ['drillbit_auto_check', 'true'],
+
+      // Midtrans Payment Gateway Credentials
+      ['midtrans_merchant_id', process.env.MIDTRANS_MERCHANT_ID || 'G159494348'],
+      ['midtrans_server_key', process.env.MIDTRANS_SERVER_KEY || 'SB-Mid-server-WfiGS2ZDUkYivS7FBUPQPAMr'],
+      ['midtrans_client_key', process.env.MIDTRANS_CLIENT_KEY || 'SB-Mid-client-6sGTeuzOa30cjfgw'],
+      ['midtrans_is_production', process.env.MIDTRANS_IS_PRODUCTION || 'false']
     ];
 
     for (const [key, val] of defaultSettings) {
@@ -263,8 +288,31 @@ function getPool() {
   return pool;
 }
 
+async function getSystemSetting(key, fallback = '') {
+  try {
+    const currentPool = getPool();
+    const [rows] = await currentPool.query('SELECT setting_value FROM system_settings WHERE setting_key = ?', [key]);
+    if (rows.length > 0 && rows[0].setting_value !== undefined && rows[0].setting_value !== null) {
+      return rows[0].setting_value;
+    }
+  } catch (e) {}
+  return process.env[key.toUpperCase()] || process.env[key] || fallback;
+}
+
+async function getAllSystemSettings() {
+  const settingsMap = {};
+  try {
+    const currentPool = getPool();
+    const [rows] = await currentPool.query('SELECT setting_key, setting_value FROM system_settings');
+    rows.forEach(r => { settingsMap[r.setting_key] = r.setting_value; });
+  } catch (e) {}
+  return settingsMap;
+}
+
 module.exports = {
   initDatabase,
   getPool,
+  getSystemSetting,
+  getAllSystemSettings,
   seedDefaultData
 };

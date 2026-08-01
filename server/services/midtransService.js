@@ -1,26 +1,24 @@
 const midtransClient = require('midtrans-client');
-
-const merchantId = (process.env.MIDTRANS_MERCHANT_ID || 'G159494348').trim();
-const serverKey = (process.env.MIDTRANS_SERVER_KEY || 'SB-Mid-server-WfiGS2ZDUkYivS7FBUPQPAMr').trim();
-const clientKey = (process.env.MIDTRANS_CLIENT_KEY || 'SB-Mid-client-6sGTeuzOa30cjfgw').trim();
-
-// Auto-detect environment: Sandbox keys start with 'SB-', Production keys start with 'Mid-'
-const isProduction = serverKey.startsWith('SB-') ? false : (process.env.MIDTRANS_IS_PRODUCTION === 'true');
-
-console.log(`💳 [MIDTRANS INIT] Merchant ID: ${merchantId}, ServerKey: ${serverKey.slice(0, 10)}..., IsProduction: ${isProduction}`);
-
-const snap = new midtransClient.Snap({
-  isProduction: isProduction,
-  serverKey: serverKey,
-  clientKey: clientKey
-});
+const { getSystemSetting } = require('../config/database');
 
 /**
  * Creates Midtrans Transaction using dedicated unique transaction_id
  */
 async function createMidtransTransaction(order, transactionId) {
+  const merchantId = (await getSystemSetting('midtrans_merchant_id', process.env.MIDTRANS_MERCHANT_ID || 'G159494348')).trim();
+  const serverKey = (await getSystemSetting('midtrans_server_key', process.env.MIDTRANS_SERVER_KEY || 'SB-Mid-server-WfiGS2ZDUkYivS7FBUPQPAMr')).trim();
+  const clientKey = (await getSystemSetting('midtrans_client_key', process.env.MIDTRANS_CLIENT_KEY || 'SB-Mid-client-6sGTeuzOa30cjfgw')).trim();
+  const isProdSetting = await getSystemSetting('midtrans_is_production', 'false');
+  const isProduction = serverKey.startsWith('SB-') ? false : (isProdSetting === 'true' || process.env.MIDTRANS_IS_PRODUCTION === 'true');
+
+  const snap = new midtransClient.Snap({
+    isProduction: isProduction,
+    serverKey: serverKey,
+    clientKey: clientKey
+  });
+
   const midtransOrderId = transactionId || `TRX-${Math.floor(100000 + Math.random() * 900000)}-${Date.now().toString().slice(-4)}`;
-  console.log(`💳 [MIDTRANS SERVICE] Creating Snap Transaction: ${midtransOrderId} (Order ID: ${order.id}), Amount: ${order.amount}, IsProduction: ${isProduction}`);
+  console.log(`💳 [MIDTRANS SERVICE] Creating Snap Transaction: ${midtransOrderId} (Order ID: ${order.id}), Amount: ${order.amount}, ServerKey: ${serverKey.slice(0, 10)}..., IsProduction: ${isProduction}`);
 
   const safeAmount = Math.max(1, parseInt(order.amount) || 10000);
 

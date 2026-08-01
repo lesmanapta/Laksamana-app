@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+const { getSystemSetting } = require('../config/database');
 
 /**
  * Automated Drillbit Plagiarism Detection Worker (Puppeteer Browser Automation Engine)
@@ -7,9 +8,9 @@ const fs = require('fs');
  * Automates login, file upload, per-word analysis, report generation, and WhatsApp delivery.
  */
 async function runDrillbitEngine(filePath, fileName, fileSize, orderId) {
-  const drillbitUrl = process.env.DRILLBIT_URL || 'https://online.drillbitplagiarismcheck.com/user/files';
-  const drillbitUser = process.env.DRILLBIT_USER || '';
-  const drillbitPass = process.env.DRILLBIT_PASS || '';
+  const drillbitUrl = await getSystemSetting('drillbit_url', process.env.DRILLBIT_URL || 'https://online.drillbitplagiarismcheck.com/user/files');
+  const drillbitUser = await getSystemSetting('drillbit_user', process.env.DRILLBIT_USER || '');
+  const drillbitPass = await getSystemSetting('drillbit_pass', process.env.DRILLBIT_PASS || '');
 
   console.log(`🤖 [AUTOMATED DRILLBIT WORKER] Preparing document upload for Order ${orderId} (${fileName})...`);
 

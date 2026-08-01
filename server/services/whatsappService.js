@@ -1,18 +1,20 @@
 const axios = require('axios');
+const { getSystemSetting } = require('../config/database');
 
 /**
  * WhatsApp Notification Service (Fonnte with Direct PDF File Attachment Support)
  */
 async function sendWhatsAppMessage(targetNumber, message, fileUrl = null) {
-  const gatewayUrl = process.env.WA_GATEWAY_URL || 'https://api.fonnte.com/send';
-  const apiToken = process.env.WA_GATEWAY_TOKEN;
+  const gatewayUrl = await getSystemSetting('wa_gateway_url', 'https://api.fonnte.com/send');
+  const apiToken = await getSystemSetting('wa_gateway_token', process.env.WA_GATEWAY_TOKEN || '');
+  const gatewayEnabled = await getSystemSetting('wa_gateway_enabled', 'true');
 
   let formattedNumber = targetNumber.replace(/\D/g, '');
   if (formattedNumber.startsWith('0')) {
     formattedNumber = '62' + formattedNumber.slice(1);
   }
 
-  if (!apiToken || apiToken.includes('YOUR_FONNTE')) {
+  if (gatewayEnabled === 'false' || !apiToken || apiToken.includes('YOUR_FONNTE')) {
     console.log(`\n====================================================`);
     console.log(`💬 [WHATSAPP SIMULATION LOG] Target: ${formattedNumber}`);
     if (fileUrl) console.log(`📎 Attachment Media URL: ${fileUrl}`);

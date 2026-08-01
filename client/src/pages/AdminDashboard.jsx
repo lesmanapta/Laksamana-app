@@ -109,6 +109,8 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
     }
   };
 
+  const [testingWa, setTestingWa] = useState(false);
+
   const handleSaveSettings = async (e) => {
     e.preventDefault();
     setSettingsSaving(true);
@@ -125,6 +127,24 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
       setMessage(`❌ ${err.message}`);
     } finally {
       setSettingsSaving(false);
+    }
+  };
+
+  const handleTestWaMessage = async () => {
+    setTestingWa(true);
+    try {
+      const res = await fetch('/api/admin/settings/test-wa', {
+        method: 'POST',
+        headers: getAdminHeaders(),
+        body: JSON.stringify({ targetNumber: systemSettings.manual_wa_number || systemSettings.wa_admin_number || '08117676477' })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal tes WhatsApp Gateway');
+      setMessage(`✅ ${data.message}`);
+    } catch (err) {
+      setMessage(`❌ ${err.message}`);
+    } finally {
+      setTestingWa(false);
     }
   };
 
@@ -1244,92 +1264,332 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
         </div>
       )}
 
-      {/* TAB SETTINGS - Pengaturan Pembayaran Manual */}
+      {/* TAB SETTINGS - Pengaturan Akun System, WA Gateway, Turnitin, Drillbit & Midtrans */}
       {activeTab === 'SETTINGS' && (
-        <div className="card border-0 shadow-sm rounded-4 p-4 bg-white">
-          <h5 className="fw-bold mb-3 text-slate-800 border-bottom pb-2">
-            ⚙️ Pengaturan Metode Pembayaran Manual (DANA / GoPay / QRIS)
-          </h5>
-
+        <div className="d-flex flex-column gap-4">
           <form onSubmit={handleSaveSettings}>
-            <div className="row g-3">
-              <div className="col-12 col-md-6">
-                <label className="form-label small fw-bold text-secondary">STATUS PEMBAYARAN MANUAL</label>
-                <select 
-                  className="form-select rounded-3"
-                  value={systemSettings.manual_payment_enabled || 'true'}
-                  onChange={(e) => setSystemSettings({ ...systemSettings, manual_payment_enabled: e.target.value })}
-                >
-                  <option value="true">✅ AKTIF (Tampilkan Opsi Manual ke Pengguna)</option>
-                  <option value="false">❌ NON-AKTIF (Hanya Pembayaran Midtrans Gateway)</option>
-                </select>
+
+            {/* 1. AKUN & CREDENTIALS TURNITIN */}
+            <div className="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+              <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+                <h5 className="fw-bold text-slate-800 mb-0 d-flex align-items-center gap-2">
+                  <span className="p-2 rounded-3 bg-emerald-50 text-emerald-600" style={{ background: '#ecfdf5', color: '#059669' }}>🛡️</span>
+                  Pengaturan Akun & Credentials Turnitin (No-Repo)
+                </h5>
+                <span className="badge bg-emerald-100 text-emerald-800 rounded-pill px-3" style={{ background: '#d1fae5', color: '#065f46' }}>Automated Worker Engine</span>
               </div>
 
-              <div className="col-12 col-md-6">
-                <label className="form-label small fw-bold text-secondary">NOMOR WA UNTUK KONFIRMASI BUKTI TRANSFER</label>
-                <input 
-                  type="text" 
-                  className="form-control rounded-3 font-monospace fw-bold"
-                  placeholder="Contoh: 08117676477"
-                  value={systemSettings.manual_wa_number || ''}
-                  onChange={(e) => setSystemSettings({ ...systemSettings, manual_wa_number: e.target.value })}
-                  required
-                />
-                <small className="text-muted">Tombol WhatsApp di akhir pemesanan akan otomatis diarahkan ke nomor ini.</small>
-              </div>
+              <div className="row g-3">
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-bold text-secondary">EMAIL AKUN TURNITIN (INSTRUCTOR / STUDENT)</label>
+                  <input 
+                    type="email" 
+                    className="form-control rounded-3 fw-semibold"
+                    placeholder="email_akun_turnitin@domain.com"
+                    value={systemSettings.turnitin_email || ''}
+                    onChange={(e) => setSystemSettings({ ...systemSettings, turnitin_email: e.target.value })}
+                  />
+                  <small className="text-muted">Digunakan oleh worker otomatis untuk login ke portal Turnitin.</small>
+                </div>
 
-              <div className="col-12 col-md-6">
-                <label className="form-label small fw-bold text-secondary">NAMA PEMILIK REKENING / E-WALLET</label>
-                <input 
-                  type="text" 
-                  className="form-control rounded-3 fw-bold"
-                  placeholder="Contoh: Sumanto Lesmana Putra"
-                  value={systemSettings.manual_account_name || ''}
-                  onChange={(e) => setSystemSettings({ ...systemSettings, manual_account_name: e.target.value })}
-                  required
-                />
-              </div>
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-bold text-secondary">PASSWORD AKUN TURNITIN</label>
+                  <input 
+                    type="password" 
+                    className="form-control rounded-3"
+                    placeholder="••••••••••••"
+                    value={systemSettings.turnitin_password || ''}
+                    onChange={(e) => setSystemSettings({ ...systemSettings, turnitin_password: e.target.value })}
+                  />
+                </div>
 
-              <div className="col-12 col-md-6">
-                <label className="form-label small fw-bold text-secondary">NOMOR DANA / GOPAY / OVO MANUAL</label>
-                <input 
-                  type="text" 
-                  className="form-control rounded-3 font-monospace"
-                  placeholder="Contoh: 08117676477"
-                  value={systemSettings.manual_ewallet_number || ''}
-                  onChange={(e) => setSystemSettings({ ...systemSettings, manual_ewallet_number: e.target.value })}
-                />
-              </div>
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-bold text-secondary">TURNITIN CLASS ID</label>
+                  <input 
+                    type="text" 
+                    className="form-control rounded-3 font-monospace"
+                    placeholder="Contoh: 41234567"
+                    value={systemSettings.turnitin_class_id || ''}
+                    onChange={(e) => setSystemSettings({ ...systemSettings, turnitin_class_id: e.target.value })}
+                  />
+                </div>
 
-              <div className="col-12">
-                <label className="form-label small fw-bold text-secondary">URL GAMBAR / INSTRUKSI QRIS MANUAL</label>
-                <input 
-                  type="text" 
-                  className="form-control rounded-3 mb-2"
-                  placeholder="Link URL Gambar QRIS (Contoh: https://i.ibb.co/qris.png) atau kosongkan"
-                  value={systemSettings.manual_qris_url || ''}
-                  onChange={(e) => setSystemSettings({ ...systemSettings, manual_qris_url: e.target.value })}
-                />
-                <textarea 
-                  rows="2"
-                  className="form-control rounded-3"
-                  placeholder="Catatan / Instruksi Tambahan QRIS Manual"
-                  value={systemSettings.manual_qris_info || ''}
-                  onChange={(e) => setSystemSettings({ ...systemSettings, manual_qris_info: e.target.value })}
-                ></textarea>
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-bold text-secondary">TURNITIN ENROLLMENT KEY / PASSWORD KELAS</label>
+                  <input 
+                    type="text" 
+                    className="form-control rounded-3"
+                    placeholder="Contoh: laksamana2026"
+                    value={systemSettings.turnitin_enrollment_key || ''}
+                    onChange={(e) => setSystemSettings({ ...systemSettings, turnitin_enrollment_key: e.target.value })}
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="mt-4 pt-3 border-top d-flex justify-content-end">
+            {/* 2. AKUN & CREDENTIALS DRILLBIT */}
+            <div className="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+              <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+                <h5 className="fw-bold text-slate-800 mb-0 d-flex align-items-center gap-2">
+                  <span className="p-2 rounded-3 bg-blue-50 text-blue-600" style={{ background: '#eff6ff', color: '#2563eb' }}>🔍</span>
+                  Pengaturan Akun & Credentials Drillbit (Per-Kata)
+                </h5>
+                <span className="badge bg-blue-100 text-blue-800 rounded-pill px-3" style={{ background: '#dbeafe', color: '#1e40af' }}>Drillbit Portal Engine</span>
+              </div>
+
+              <div className="row g-3">
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-bold text-secondary">USERNAME / EMAIL AKUN DRILLBIT</label>
+                  <input 
+                    type="text" 
+                    className="form-control rounded-3 fw-semibold"
+                    placeholder="username_drillbit@domain.com"
+                    value={systemSettings.drillbit_user || ''}
+                    onChange={(e) => setSystemSettings({ ...systemSettings, drillbit_user: e.target.value })}
+                  />
+                </div>
+
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-bold text-secondary">PASSWORD AKUN DRILLBIT</label>
+                  <input 
+                    type="password" 
+                    className="form-control rounded-3"
+                    placeholder="••••••••••••"
+                    value={systemSettings.drillbit_pass || ''}
+                    onChange={(e) => setSystemSettings({ ...systemSettings, drillbit_pass: e.target.value })}
+                  />
+                </div>
+
+                <div className="col-12">
+                  <label className="form-label small fw-bold text-secondary">URL PORTAL FILES DRILLBIT</label>
+                  <input 
+                    type="text" 
+                    className="form-control rounded-3 font-monospace"
+                    placeholder="https://online.drillbitplagiarismcheck.com/user/files"
+                    value={systemSettings.drillbit_url || ''}
+                    onChange={(e) => setSystemSettings({ ...systemSettings, drillbit_url: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 3. KONFIGURASI WHATSAPP GATEWAY (FONNTE) */}
+            <div className="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+              <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+                <h5 className="fw-bold text-slate-800 mb-0 d-flex align-items-center gap-2">
+                  <span className="p-2 rounded-3 bg-emerald-50 text-emerald-600" style={{ background: '#ecfdf5', color: '#059669' }}>💬</span>
+                  Konfigurasi WhatsApp Gateway (Fonnte API Token)
+                </h5>
+                <button 
+                  type="button" 
+                  onClick={handleTestWaMessage}
+                  disabled={testingWa}
+                  className="btn btn-sm btn-outline-success rounded-pill px-3 fw-bold"
+                >
+                  {testingWa ? 'Mengirim...' : '🧪 Tes Kirim Pesan WA'}
+                </button>
+              </div>
+
+              <div className="row g-3">
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-bold text-secondary">API TOKEN FONNTE GATEWAY</label>
+                  <input 
+                    type="text" 
+                    className="form-control rounded-3 font-monospace fw-semibold"
+                    placeholder="Contoh: N2@T4Wk_..."
+                    value={systemSettings.wa_gateway_token || ''}
+                    onChange={(e) => setSystemSettings({ ...systemSettings, wa_gateway_token: e.target.value })}
+                  />
+                  <small className="text-muted">Dapatkan API Token dari dashboard Fonnte (https://fonnte.com).</small>
+                </div>
+
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-bold text-secondary">NOMOR WHATSAPP ADMIN NOTIFIKASI</label>
+                  <input 
+                    type="text" 
+                    className="form-control rounded-3 font-monospace fw-bold"
+                    placeholder="Contoh: 08117676477"
+                    value={systemSettings.wa_admin_number || ''}
+                    onChange={(e) => setSystemSettings({ ...systemSettings, wa_admin_number: e.target.value })}
+                  />
+                </div>
+
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-bold text-secondary">URL API FONNTE ENDPOINT</label>
+                  <input 
+                    type="text" 
+                    className="form-control rounded-3 font-monospace"
+                    placeholder="https://api.fonnte.com/send"
+                    value={systemSettings.wa_gateway_url || ''}
+                    onChange={(e) => setSystemSettings({ ...systemSettings, wa_gateway_url: e.target.value })}
+                  />
+                </div>
+
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-bold text-secondary">STATUS WHATSAPP GATEWAY</label>
+                  <select 
+                    className="form-select rounded-3"
+                    value={systemSettings.wa_gateway_enabled || 'true'}
+                    onChange={(e) => setSystemSettings({ ...systemSettings, wa_gateway_enabled: e.target.value })}
+                  >
+                    <option value="true">✅ AKTIF (Kirim Notifikasi WA Otomatis)</option>
+                    <option value="false">❌ NON-AKTIF (Mode Simulasi Console Log)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* 4. MIDTRANS PAYMENT GATEWAY KEYS */}
+            <div className="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+              <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+                <h5 className="fw-bold text-slate-800 mb-0 d-flex align-items-center gap-2">
+                  <span className="p-2 rounded-3 bg-purple-50 text-purple-600" style={{ background: '#faf5ff', color: '#9333ea' }}>💳</span>
+                  Midtrans Payment Gateway Credentials
+                </h5>
+                <span className="badge bg-purple-100 text-purple-800 rounded-pill px-3" style={{ background: '#f3e8ff', color: '#6b21a8' }}>Midtrans Snap API</span>
+              </div>
+
+              <div className="row g-3">
+                <div className="col-12 col-md-4">
+                  <label className="form-label small fw-bold text-secondary">MIDTRANS MERCHANT ID</label>
+                  <input 
+                    type="text" 
+                    className="form-control rounded-3 font-monospace"
+                    placeholder="G159494348"
+                    value={systemSettings.midtrans_merchant_id || ''}
+                    onChange={(e) => setSystemSettings({ ...systemSettings, midtrans_merchant_id: e.target.value })}
+                  />
+                </div>
+
+                <div className="col-12 col-md-4">
+                  <label className="form-label small fw-bold text-secondary">SERVER KEY MIDTRANS</label>
+                  <input 
+                    type="text" 
+                    className="form-control rounded-3 font-monospace"
+                    placeholder="SB-Mid-server-..."
+                    value={systemSettings.midtrans_server_key || ''}
+                    onChange={(e) => setSystemSettings({ ...systemSettings, midtrans_server_key: e.target.value })}
+                  />
+                </div>
+
+                <div className="col-12 col-md-4">
+                  <label className="form-label small fw-bold text-secondary">CLIENT KEY MIDTRANS</label>
+                  <input 
+                    type="text" 
+                    className="form-control rounded-3 font-monospace"
+                    placeholder="SB-Mid-client-..."
+                    value={systemSettings.midtrans_client_key || ''}
+                    onChange={(e) => setSystemSettings({ ...systemSettings, midtrans_client_key: e.target.value })}
+                  />
+                </div>
+
+                <div className="col-12">
+                  <label className="form-label small fw-bold text-secondary">MODE LINGKUNGAN MIDTRANS</label>
+                  <select 
+                    className="form-select rounded-3"
+                    value={systemSettings.midtrans_is_production || 'false'}
+                    onChange={(e) => setSystemSettings({ ...systemSettings, midtrans_is_production: e.target.value })}
+                  >
+                    <option value="false">🧪 SANDBOX (Mode Pengujian / Test Keys)</option>
+                    <option value="true">🚀 PRODUCTION (Mode Live Transaksi Asli)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* 5. PEMBAYARAN MANUAL */}
+            <div className="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+              <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+                <h5 className="fw-bold text-slate-800 mb-0 d-flex align-items-center gap-2">
+                  <span className="p-2 rounded-3 bg-amber-50 text-amber-600" style={{ background: '#fffbeb', color: '#d97706' }}>💙</span>
+                  Pengaturan Metode Pembayaran Manual (DANA / GoPay / QRIS)
+                </h5>
+              </div>
+
+              <div className="row g-3">
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-bold text-secondary">STATUS PEMBAYARAN MANUAL</label>
+                  <select 
+                    className="form-select rounded-3"
+                    value={systemSettings.manual_payment_enabled || 'true'}
+                    onChange={(e) => setSystemSettings({ ...systemSettings, manual_payment_enabled: e.target.value })}
+                  >
+                    <option value="true">✅ AKTIF (Tampilkan Opsi Manual ke Pengguna)</option>
+                    <option value="false">❌ NON-AKTIF (Hanya Pembayaran Midtrans Gateway)</option>
+                  </select>
+                </div>
+
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-bold text-secondary">NOMOR WA UNTUK KONFIRMASI BUKTI TRANSFER</label>
+                  <input 
+                    type="text" 
+                    className="form-control rounded-3 font-monospace fw-bold"
+                    placeholder="08117676477"
+                    value={systemSettings.manual_wa_number || ''}
+                    onChange={(e) => setSystemSettings({ ...systemSettings, manual_wa_number: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-bold text-secondary">NAMA PEMILIK REKENING / E-WALLET</label>
+                  <input 
+                    type="text" 
+                    className="form-control rounded-3 fw-bold"
+                    placeholder="Sumanto Lesmana Putra"
+                    value={systemSettings.manual_account_name || ''}
+                    onChange={(e) => setSystemSettings({ ...systemSettings, manual_account_name: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-bold text-secondary">NOMOR DANA / GOPAY / OVO MANUAL</label>
+                  <input 
+                    type="text" 
+                    className="form-control rounded-3 font-monospace"
+                    placeholder="08117676477"
+                    value={systemSettings.manual_ewallet_number || ''}
+                    onChange={(e) => setSystemSettings({ ...systemSettings, manual_ewallet_number: e.target.value })}
+                  />
+                </div>
+
+                <div className="col-12">
+                  <label className="form-label small fw-bold text-secondary">URL GAMBAR / INSTRUKSI QRIS MANUAL</label>
+                  <input 
+                    type="text" 
+                    className="form-control rounded-3 mb-2"
+                    placeholder="Link URL Gambar QRIS (Contoh: https://i.ibb.co/qris.png) atau kosongkan"
+                    value={systemSettings.manual_qris_url || ''}
+                    onChange={(e) => setSystemSettings({ ...systemSettings, manual_qris_url: e.target.value })}
+                  />
+                  <textarea 
+                    rows="2"
+                    className="form-control rounded-3"
+                    placeholder="Catatan / Instruksi Tambahan QRIS Manual"
+                    value={systemSettings.manual_qris_info || ''}
+                    onChange={(e) => setSystemSettings({ ...systemSettings, manual_qris_info: e.target.value })}
+                  ></textarea>
+                </div>
+              </div>
+            </div>
+
+            {/* FLOATING / STICKY SAVE BUTTON */}
+            <div className="d-flex justify-content-end mb-4">
               <button 
                 type="submit" 
-                className="btn btn-emerald px-4 py-2.5 rounded-pill fw-bold"
+                className="btn btn-emerald px-5 py-3 rounded-pill fw-bold fs-6 shadow-lg"
                 style={{ background: '#059669', borderColor: '#059669', color: '#fff' }}
                 disabled={settingsSaving}
               >
-                {settingsSaving ? 'Menyimpan...' : '💾 Simpan Pengaturan Pembayaran'}
+                {settingsSaving ? (
+                  <span><span className="spinner-border spinner-border-sm me-2"></span>Menyimpan Pengaturan...</span>
+                ) : (
+                  <span>💾 Simpan Semua Pengaturan & Credentials Akun</span>
+                )}
               </button>
             </div>
+
           </form>
         </div>
       )}
