@@ -147,6 +147,17 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Auto Database Setup Endpoint - visit this URL once to create all tables
+app.get('/api/setup-db', async (req, res) => {
+  try {
+    const { initDatabase } = require('./server/config/database');
+    await initDatabase();
+    res.json({ success: true, message: '✅ Database tables created & seeded successfully! All system_settings ready.' });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
 // Serve React Frontend (client/dist)
 const clientBuildPath = path.join(__dirname, 'client/dist');
 if (fs.existsSync(clientBuildPath)) {
