@@ -1315,14 +1315,15 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
                 </div>
 
                 <div className="col-12 col-md-6">
-                  <label className="form-label small fw-bold text-secondary">TURNITIN ENROLLMENT KEY / PASSWORD KELAS</label>
+                  <label className="form-label small fw-bold text-secondary">TURNITIN ENROLLMENT KEY / PASSWORD KELAS <span className="fw-normal text-muted">(OPSIONAL)</span></label>
                   <input 
                     type="text" 
                     className="form-control rounded-3"
-                    placeholder="Contoh: laksamana2026"
+                    placeholder="Opsional / Kosongkan jika tidak ada"
                     value={systemSettings.turnitin_enrollment_key || ''}
                     onChange={(e) => setSystemSettings({ ...systemSettings, turnitin_enrollment_key: e.target.value })}
                   />
+                  <small className="text-muted">Boleh dikosongkan jika Anda menggunakan Akun Instruktur atau kelas yang sudah aktif.</small>
                 </div>
               </div>
             </div>
