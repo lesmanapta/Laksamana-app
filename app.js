@@ -24,6 +24,7 @@ const authRoutes = require('./server/routes/auth');
 const servicesRoutes = require('./server/routes/services');
 const ordersRoutes = require('./server/routes/orders');
 const adminRoutes = require('./server/routes/admin');
+const settingsRoutes = require('./server/routes/settings');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -35,7 +36,8 @@ app.use(express.urlencoded({ extended: true }));
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'server/uploads')));
 
-// Direct fallback handlers for /api/admin/settings to guarantee 100% route availability on cPanel Passenger
+// Dedicated settings route (Must be mounted BEFORE adminRoutes to prevent 404 falling through)
+app.use('/api/admin/settings', settingsRoutes);
 app.get('/api/admin/settings', async (req, res) => {
   try {
     let getPool;

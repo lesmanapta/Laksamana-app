@@ -18,6 +18,7 @@ const authRoutes = require('./routes/auth');
 const servicesRoutes = require('./routes/services');
 const ordersRoutes = require('./routes/orders');
 const adminRoutes = require('./routes/admin');
+const settingsRoutes = require('./routes/settings');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -40,6 +41,7 @@ const authRateLimiter = rateLimit
 // Static file uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+app.use('/api/admin/settings', settingsRoutes);
 app.use('/api/auth', authRateLimiter, authRoutes);
 app.use('/api/services', servicesRoutes);
 app.use('/api/orders', ordersRoutes);
