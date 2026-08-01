@@ -12,7 +12,7 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
   const [plagiarismFile, setPlagiarismFile] = useState(null);
   const [whatsapp, setWhatsapp] = useState('');
   const [email, setEmail] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('MANUAL_EWALLET'); // MANUAL_EWALLET, MANUAL_QRIS, MIDTRANS_GATEWAY
+  const [paymentMethod, setPaymentMethod] = useState('MIDTRANS_GATEWAY'); // MIDTRANS_GATEWAY, MANUAL_EWALLET, MANUAL_QRIS
   const [manualResponse, setManualResponse] = useState(null);
   const [tokenCodeInput, setTokenCodeInput] = useState('');
   const [appliedToken, setAppliedToken] = useState(null);
@@ -419,9 +419,9 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
                   <label className="form-label fw-semibold small mb-2 text-secondary">PILIH METODE PEMBAYARAN</label>
                   <div className="row g-2">
                     {[
+                      { id: 'MIDTRANS_GATEWAY', title: '⚡ Midtrans Automatic (QRIS / GoPay / ShopeePay)', subtitle: 'Pembayaran otomatis diproses 24 Jam' },
                       { id: 'MANUAL_EWALLET', title: '💙 DANA / GoPay (Manual Admin Approve)', subtitle: 'No. WA 08117676477 a.n. Sumanto Lesmana Putra' },
-                      { id: 'MANUAL_QRIS', title: '📷 QRIS Manual (Scan QRIS & Approve)', subtitle: 'Konfirmasi bukti transfer ke WhatsApp 08117676477' },
-                      { id: 'MIDTRANS_GATEWAY', title: '⚡ Midtrans Automatic (QRIS / GoPay / ShopeePay)', subtitle: 'Pembayaran otomatis diproses 24 Jam' }
+                      { id: 'MANUAL_QRIS', title: '📷 QRIS Manual (Scan QRIS & Approve)', subtitle: 'Konfirmasi bukti transfer ke WhatsApp 08117676477' }
                     ].map(pm => (
                       <div key={pm.id} className="col-12 col-md-4">
                         <div 
