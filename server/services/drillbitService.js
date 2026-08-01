@@ -21,9 +21,18 @@ async function runDrillbitEngine(filePath, fileName, fileSize, orderId) {
 
   // Real Puppeteer Drillbit Upload Automation
   if (drillbitUser && !drillbitUser.includes('email_akun_drillbit')) {
-    try {
-      const puppeteer = require('puppeteer');
-      console.log(`🔑 [DRILLBIT WORKER] Launching headless browser & logging in to Drillbit (${drillbitUser})...`);
+      let puppeteer;
+      try {
+        puppeteer = require('puppeteer-core');
+      } catch (e) {
+        try {
+          puppeteer = require('puppeteer');
+        } catch (e2) {}
+      }
+      if (!puppeteer) {
+        console.log(`ℹ️ [DRILLBIT ENGINE] Puppeteer not installed. Using API simulation for Order ${orderId}...`);
+        return;
+      }
 
       const browser = await puppeteer.launch({
         headless: "new",
