@@ -447,10 +447,9 @@ router.post('/settings', async (req, res) => {
     for (const [key, val] of Object.entries(settings)) {
       if (val !== undefined && val !== null) {
         await db.query(`
-          INSERT INTO system_settings (setting_key, setting_value)
-          VALUES (?, ?) 
-          ON DUPLICATE KEY UPDATE setting_value = ?;
-        `, [key, String(val), String(val)]);
+          REPLACE INTO system_settings (setting_key, setting_value)
+          VALUES (?, ?);
+        `, [key, String(val)]);
       }
     }
     res.json({ message: 'Pengaturan & credentials akun berhasil disimpan ke database!' });

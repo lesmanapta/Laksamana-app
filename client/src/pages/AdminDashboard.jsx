@@ -1270,6 +1270,22 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
         <div className="d-flex flex-column gap-4">
           <form onSubmit={handleSaveSettings}>
 
+            {/* TOP HEADER ACTION BAR */}
+            <div className="d-flex align-items-center justify-content-between bg-white p-3 rounded-4 shadow-sm mb-4">
+              <div>
+                <h5 className="fw-bold mb-0 text-slate-800">⚙️ Pengaturan Akun & System Config</h5>
+                <small className="text-muted">Kelola kredensial Turnitin, Drillbit, WA Gateway, Midtrans & Pembayaran Manual.</small>
+              </div>
+              <button 
+                type="submit" 
+                className="btn btn-emerald px-4 py-2 rounded-pill fw-bold text-white shadow-sm"
+                style={{ background: '#059669', borderColor: '#059669' }}
+                disabled={settingsSaving}
+              >
+                {settingsSaving ? 'Menyimpan...' : '💾 Simpan Pengaturan'}
+              </button>
+            </div>
+
             {/* 1. AKUN & CREDENTIALS TURNITIN */}
             <div className="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
               <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
@@ -1277,7 +1293,14 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
                   <span className="p-2 rounded-3 bg-emerald-50 text-emerald-600" style={{ background: '#ecfdf5', color: '#059669' }}>🛡️</span>
                   Pengaturan Akun & Credentials Turnitin (No-Repo)
                 </h5>
-                <span className="badge bg-emerald-100 text-emerald-800 rounded-pill px-3" style={{ background: '#d1fae5', color: '#065f46' }}>Automated Worker Engine</span>
+                <button 
+                  type="submit"
+                  className="btn btn-sm btn-emerald rounded-pill px-3 fw-bold text-white"
+                  style={{ background: '#059669', borderColor: '#059669' }}
+                  disabled={settingsSaving}
+                >
+                  {settingsSaving ? 'Saving...' : '💾 Simpan Turnitin'}
+                </button>
               </div>
 
               <div className="row g-3">
