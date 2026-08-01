@@ -9,6 +9,7 @@ export default function Navbar({ activePage, setActivePage, user, onOpenLogin, o
     if (pageName === 'admin') targetPath = '/admin';
     else if (pageName === 'order') targetPath = '/order';
     else if (pageName === 'track') targetPath = '/track';
+    else if (pageName === 'profile') targetPath = '/profile';
     if (window.location.pathname !== targetPath) {
       window.history.pushState({ page: pageName }, '', targetPath);
     }
