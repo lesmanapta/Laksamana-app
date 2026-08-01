@@ -375,8 +375,6 @@ router.post('/orders/:id/approve-manual', async (req, res) => {
   }
 });
 
-// GET /api/admin/settings - Fetch all system settings
-router.get('/settings', async (req, res) => {
 // GET /api/admin/settings - Fetch system settings
 router.get('/settings', async (req, res) => {
   try {

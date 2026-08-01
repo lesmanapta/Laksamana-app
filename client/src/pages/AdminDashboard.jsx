@@ -123,6 +123,7 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal menyimpan pengaturan');
       setMessage(`✅ ${data.message}`);
+      await fetchAdminData();
     } catch (err) {
       setMessage(`❌ ${err.message}`);
     } finally {
@@ -1285,7 +1286,7 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
                   <input 
                     type="email" 
                     className="form-control rounded-3 fw-semibold"
-                    placeholder="email_akun_turnitin@domain.com"
+                    placeholder="Masukkan email akun Turnitin Anda"
                     value={systemSettings.turnitin_email || ''}
                     onChange={(e) => setSystemSettings({ ...systemSettings, turnitin_email: e.target.value })}
                   />
@@ -1297,7 +1298,7 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
                   <input 
                     type="password" 
                     className="form-control rounded-3"
-                    placeholder="••••••••••••"
+                    placeholder="Masukkan password akun Turnitin Anda"
                     value={systemSettings.turnitin_password || ''}
                     onChange={(e) => setSystemSettings({ ...systemSettings, turnitin_password: e.target.value })}
                   />
@@ -1308,7 +1309,7 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
                   <input 
                     type="text" 
                     className="form-control rounded-3 font-monospace"
-                    placeholder="Contoh: 41234567"
+                    placeholder="Masukkan Class ID (Contoh: 41234567)"
                     value={systemSettings.turnitin_class_id || ''}
                     onChange={(e) => setSystemSettings({ ...systemSettings, turnitin_class_id: e.target.value })}
                   />
@@ -1344,7 +1345,7 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
                   <input 
                     type="text" 
                     className="form-control rounded-3 fw-semibold"
-                    placeholder="username_drillbit@domain.com"
+                    placeholder="Masukkan username / email akun Drillbit Anda"
                     value={systemSettings.drillbit_user || ''}
                     onChange={(e) => setSystemSettings({ ...systemSettings, drillbit_user: e.target.value })}
                   />
@@ -1355,7 +1356,7 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
                   <input 
                     type="password" 
                     className="form-control rounded-3"
-                    placeholder="••••••••••••"
+                    placeholder="Masukkan password akun Drillbit Anda"
                     value={systemSettings.drillbit_pass || ''}
                     onChange={(e) => setSystemSettings({ ...systemSettings, drillbit_pass: e.target.value })}
                   />
@@ -1397,7 +1398,7 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
                   <input 
                     type="text" 
                     className="form-control rounded-3 font-monospace fw-semibold"
-                    placeholder="Contoh: N2@T4Wk_..."
+                    placeholder="Masukkan API Token Fonnte Anda"
                     value={systemSettings.wa_gateway_token || ''}
                     onChange={(e) => setSystemSettings({ ...systemSettings, wa_gateway_token: e.target.value })}
                   />
