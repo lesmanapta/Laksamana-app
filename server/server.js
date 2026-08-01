@@ -2,7 +2,15 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const rateLimit = require('express-rate-limit');
+
+// Optional rate limiting - gracefully skip if package not installed
+let rateLimit;
+try {
+  rateLimit = require('express-rate-limit');
+} catch (e) {
+  console.warn('⚠️ express-rate-limit not installed. Rate limiting disabled.');
+  rateLimit = null;
+}
 
 const { initDatabase } = require('./config/database');
 const { startExpiryWorker } = require('./services/expiryWorker');
@@ -34,13 +42,15 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Rate limiting for auth routes (prevent brute force)
-const authRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20,                   // max 20 attempts per 15 min per IP
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Terlalu banyak percobaan login. Silakan coba lagi dalam 15 menit.' }
-});
+const authRateLimiter = rateLimit
+  ? rateLimit({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 20,                   // max 20 attempts per 15 min per IP
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: 'Terlalu banyak percobaan login. Silakan coba lagi dalam 15 menit.' }
+    })
+  : (req, res, next) => next(); // Passthrough if not installed
 
 // Static file uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
