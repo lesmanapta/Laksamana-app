@@ -38,7 +38,12 @@ app.use('/uploads', express.static(path.join(__dirname, 'server/uploads')));
 // Direct fallback handlers for /api/admin/settings to guarantee 100% route availability on cPanel Passenger
 app.get('/api/admin/settings', async (req, res) => {
   try {
-    const { getPool } = require('./server/config/database');
+    let getPool;
+    try {
+      getPool = require('./server/config/database').getPool;
+    } catch (e) {
+      getPool = require('./config/database').getPool;
+    }
     const db = getPool();
     try {
       await db.query(`
@@ -98,7 +103,12 @@ app.post('/api/admin/settings', async (req, res) => {
   }
 
   try {
-    const { getPool } = require('./server/config/database');
+    let getPool;
+    try {
+      getPool = require('./server/config/database').getPool;
+    } catch (e) {
+      getPool = require('./config/database').getPool;
+    }
     const db = getPool();
     try {
       await db.query(`

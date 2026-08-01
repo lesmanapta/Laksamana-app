@@ -48,7 +48,12 @@ app.use('/api/admin', adminRoutes);
 // Direct fallback handlers for /api/admin/settings
 app.get('/api/admin/settings', async (req, res) => {
   try {
-    const { getPool } = require('./config/database');
+    let getPool;
+    try {
+      getPool = require('./config/database').getPool;
+    } catch (e) {
+      getPool = require('./server/config/database').getPool;
+    }
     const db = getPool();
     try {
       await db.query(`
@@ -108,7 +113,12 @@ app.post('/api/admin/settings', async (req, res) => {
   }
 
   try {
-    const { getPool } = require('./config/database');
+    let getPool;
+    try {
+      getPool = require('./config/database').getPool;
+    } catch (e) {
+      getPool = require('./server/config/database').getPool;
+    }
     const db = getPool();
     try {
       await db.query(`
