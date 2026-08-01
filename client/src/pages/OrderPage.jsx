@@ -1,7 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function OrderPage({ selectedService, services, onOrderSuccess }) {
-  const [activeService, setActiveService] = useState(selectedService || services[0]);
+  const activeServicesList = services.filter(s => s.active !== false);
+  const initialService = (selectedService && selectedService.active !== false) 
+    ? selectedService 
+    : (activeServicesList[0] || services[0]);
+
+  const [activeService, setActiveService] = useState(initialService);
   const [file, setFile] = useState(null);
   const [plagiarismFile, setPlagiarismFile] = useState(null);
   const [whatsapp, setWhatsapp] = useState('');
@@ -23,6 +28,16 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
   
   // Post-order success modal state
   const [createdOrder, setCreatedOrder] = useState(null);
+
+  useEffect(() => {
+    if (selectedService && selectedService.active !== false) {
+      setActiveService(selectedService);
+    } else if (!activeService || activeService.active === false) {
+      if (activeServicesList.length > 0) {
+        setActiveService(activeServicesList[0]);
+      }
+    }
+  }, [selectedService, services]);
 
   const isTurnitin = activeService && (activeService.slug === 'cek-plagiasi' || activeService.id === 'cek-plagiasi');
   const isParafrase = activeService && (activeService.slug === 'parafrase' || activeService.id === 'parafrase');
@@ -74,6 +89,10 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (activeService && activeService.active === false) {
+      setError('Layanan ini sedang tidak aktif / belum tersedia. Silakan pilih layanan lain.');
+      return;
+    }
     if (!file) {
       setError('Harap pilih file dokumen (.pdf atau .docx) terlebih dahulu!');
       return;
@@ -177,10 +196,12 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
                   value={activeService ? activeService.id : ''}
                   onChange={(e) => {
                     const found = services.find(s => s.id === e.target.value);
-                    setActiveService(found);
+                    if (found && found.active !== false) {
+                      setActiveService(found);
+                    }
                   }}
                 >
-                  {services.map(s => (
+                  {(activeServicesList.length > 0 ? activeServicesList : services).map(s => (
                     <option key={s.id} value={s.id}>
                       {s.title} — {s.unit === 'kata' ? 'Rp 10 / kata' : `Rp ${s.price.toLocaleString('id-ID')} / ${s.unit}`}
                     </option>

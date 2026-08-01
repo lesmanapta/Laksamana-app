@@ -53,7 +53,7 @@ router.get('/my-orders', async (req, res) => {
     const [rows] = await db.query(`
       SELECT o.*, s.title as serviceName 
       FROM orders o 
-      LEFT JOIN services s ON o.service_id = s.id 
+      LEFT JOIN services s ON (o.service_slug = s.slug OR o.service_slug = s.id) 
       WHERE (LOWER(o.email) = ? AND o.email != '') 
          OR (o.whatsapp = ? AND o.whatsapp != '') 
          OR (o.whatsapp LIKE ? AND o.whatsapp != '')
@@ -247,6 +247,17 @@ router.post('/create', cpUpload, async (req, res) => {
   const plagiarismReportPath = reportFile ? `/uploads/${reportFile.filename}` : '';
   const fileSize = mainFile ? mainFile.size : 30000;
   const targetSlug = serviceSlug || 'cek-plagiasi';
+
+  // Check if target service is active
+  try {
+    const db = getPool();
+    const [svcRows] = await db.query('SELECT title, active FROM services WHERE slug = ? OR id = ?', [targetSlug, targetSlug]);
+    if (svcRows.length > 0 && svcRows[0].active === 0) {
+      return res.status(400).json({ error: `Layanan "${svcRows[0].title}" saat ini sedang tidak aktif / belum tersedia saat ini.` });
+    }
+  } catch (svcErr) {
+    console.error('Error checking service active state:', svcErr.message);
+  }
 
   let calculatedWordCount = Math.max(150, Math.ceil(fileSize / 18));
   let calculatedAmount = parseInt(price) || 10000;

@@ -17,19 +17,31 @@ async function seedDefaultData(poolConnection) {
 
     // 1. Super Admin Account: Lesmana.pta@gmail.com / Manto1909@
     const adminPassHash = await bcrypt.hash('Manto1909@', salt);
-    await poolConnection.query(`
-      INSERT INTO users (id, name, email, password, whatsapp, role, tokens, is_verified)
-      VALUES ('usr_superadmin', 'Sumanto Lesmana Putra', 'Lesmana.pta@gmail.com', ?, '08117676477', 'superadmin', 999, 1)
-      ON DUPLICATE KEY UPDATE password = ?, role = 'superadmin', is_verified = 1;
-    `, [adminPassHash, adminPassHash]);
+    const [adminCheck] = await poolConnection.query('SELECT * FROM users WHERE LOWER(email) = "lesmana.pta@gmail.com"');
+    if (adminCheck.length === 0) {
+      await poolConnection.query(`
+        INSERT INTO users (id, name, email, password, whatsapp, role, tokens, is_verified)
+        VALUES ('usr_superadmin', 'Sumanto Lesmana Putra', 'Lesmana.pta@gmail.com', ?, '08117676477', 'superadmin', 999, 1)
+      `, [adminPassHash]);
+    } else {
+      await poolConnection.query(`
+        UPDATE users SET password = ?, role = 'superadmin', is_verified = 1 WHERE LOWER(email) = "lesmana.pta@gmail.com"
+      `, [adminPassHash]);
+    }
 
     // 2. Regular User Account: sumantolesmana1909@gmail.com / Manto1909
     const userPassHash = await bcrypt.hash('Manto1909', salt);
-    await poolConnection.query(`
-      INSERT INTO users (id, name, email, password, whatsapp, role, tokens, is_verified)
-      VALUES ('usr_regular', 'Sumanto Lesmana', 'sumantolesmana1909@gmail.com', ?, '081234567890', 'user', 5, 1)
-      ON DUPLICATE KEY UPDATE password = ?, role = 'user', is_verified = 1;
-    `, [userPassHash, userPassHash]);
+    const [userCheck] = await poolConnection.query('SELECT * FROM users WHERE LOWER(email) = "sumantolesmana1909@gmail.com"');
+    if (userCheck.length === 0) {
+      await poolConnection.query(`
+        INSERT INTO users (id, name, email, password, whatsapp, role, tokens, is_verified)
+        VALUES ('usr_regular', 'Sumanto Lesmana', 'sumantolesmana1909@gmail.com', ?, '081234567890', 'user', 5, 1)
+      `, [userPassHash]);
+    } else {
+      await poolConnection.query(`
+        UPDATE users SET password = ?, role = 'user', is_verified = 1 WHERE LOWER(email) = "sumantolesmana1909@gmail.com"
+      `, [userPassHash]);
+    }
 
     // 3. Seed Default Services
     const [existingServices] = await poolConnection.query('SELECT COUNT(*) as count FROM services');
