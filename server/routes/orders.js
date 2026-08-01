@@ -301,7 +301,8 @@ router.post('/create', cpUpload, async (req, res) => {
   }
 
   analysisResult.reportDownloadUrl = reportDownloadUrl;
-  const initialStatus = usedTokenCode ? 'PROCESSING' : 'PENDING_PAYMENT';
+  const isManualPayment = !usedTokenCode && (paymentMethod === 'MANUAL_EWALLET' || paymentMethod === 'MANUAL_QRIS' || (paymentMethod && paymentMethod.startsWith('MANUAL')));
+  const initialStatus = usedTokenCode ? 'PROCESSING' : (isManualPayment ? 'PENDING_VERIFICATION' : 'PENDING_PAYMENT');
 
   const newOrder = {
     id: orderId,
@@ -313,7 +314,7 @@ router.post('/create', cpUpload, async (req, res) => {
     fileSize,
     whatsapp,
     email: email || '',
-    paymentMethod: usedTokenCode ? `Token Paket (${usedTokenCode})` : (paymentMethod || 'Midtrans QRIS'),
+    paymentMethod: usedTokenCode ? `Token Paket (${usedTokenCode})` : (isManualPayment ? (paymentMethod === 'MANUAL_EWALLET' ? 'Manual DANA/GoPay (08117676477)' : 'Manual QRIS') : (paymentMethod || 'Midtrans QRIS')),
     amount: calculatedAmount,
     status: initialStatus,
     filterOptions: parsedFilters,
@@ -323,13 +324,34 @@ router.post('/create', cpUpload, async (req, res) => {
   };
 
   try {
-    const midtransRes = await createMidtransTransaction(newOrder, transactionId);
-    if (!usedTokenCode && midtransRes.error) {
-      return res.status(400).json({ error: `Gagal menghubungkan ke Gateway Pembayaran Midtrans: ${midtransRes.error}. Silakan periksa konfigurasi MIDTRANS_SERVER_KEY (Sandbox / Production) di server.` });
-    }
+    const db = getPool();
 
-    newOrder.snapToken = midtransRes.snapToken;
-    newOrder.snapRedirectUrl = midtransRes.redirectUrl;
+    // Fetch system settings for manual payment confirmation
+    let settings = {
+      manual_wa_number: '08117676477',
+      manual_account_name: 'Sumanto Lesmana Putra',
+      manual_ewallet_number: '08117676477',
+      manual_qris_url: '',
+      manual_qris_info: 'Scan QRIS Manual Laksamana lalu kirimkan bukti transfer ke WhatsApp 08117676477.'
+    };
+    try {
+      const [settingRows] = await db.query('SELECT setting_key, setting_value FROM system_settings');
+      settingRows.forEach(s => { settings[s.setting_key] = s.setting_value; });
+    } catch (sErr) {}
+
+    let snapToken = null;
+    let snapRedirectUrl = null;
+
+    if (!usedTokenCode && !isManualPayment) {
+      const midtransRes = await createMidtransTransaction(newOrder, transactionId);
+      if (midtransRes.error) {
+        return res.status(400).json({ error: `Gagal menghubungkan ke Gateway Pembayaran Midtrans: ${midtransRes.error}. Silakan periksa konfigurasi MIDTRANS_SERVER_KEY di server.` });
+      }
+      snapToken = midtransRes.snapToken;
+      snapRedirectUrl = midtransRes.redirectUrl;
+      newOrder.snapToken = snapToken;
+      newOrder.snapRedirectUrl = snapRedirectUrl;
+    }
 
     const db = getPool();
     // 1. Insert Into orders Table

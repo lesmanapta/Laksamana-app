@@ -69,14 +69,32 @@ async function seedDefaultData(poolConnection) {
       console.log('🌱 [DATABASE SEEDER] Default packages inserted into MySQL.');
     }
 
-    // 5. Cleanup any legacy orders that had dummy .txt reports automatically marked as COMPLETED
+    // 5. Seed System Settings
+    const defaultSettings = [
+      ['manual_payment_enabled', 'true'],
+      ['manual_wa_number', '08117676477'],
+      ['manual_account_name', 'Sumanto Lesmana Putra'],
+      ['manual_ewallet_number', '08117676477'],
+      ['manual_ewallet_types', 'DANA, GoPay, OVO, ShopeePay'],
+      ['manual_qris_url', ''],
+      ['manual_qris_info', 'Scan QRIS Manual Laksamana lalu kirimkan bukti transfer ke WhatsApp 08117676477.']
+    ];
+
+    for (const [key, val] of defaultSettings) {
+      await poolConnection.query(`
+        INSERT INTO system_settings (setting_key, setting_value)
+        VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_key = setting_key;
+      `, [key, val]);
+    }
+
+    // 6. Cleanup any legacy orders that had dummy .txt reports automatically marked as COMPLETED
     await poolConnection.query(`
       UPDATE orders 
       SET status = 'PROCESSING', admin_notes = 'Menunggu pengerjaan / unggah laporan PDF Turnitin oleh Admin'
       WHERE status = 'COMPLETED' AND (report_download_url LIKE '%.txt' OR report_download_url IS NULL OR report_download_url = '');
     `);
 
-    console.log(`🌱 [DATABASE SEEDER] All default accounts, services, packages, and order statuses updated in MySQL.`);
+    console.log(`🌱 [DATABASE SEEDER] All default accounts, services, packages, system settings, and order statuses updated in MySQL.`);
   } catch (err) {
     console.error(`⚠️ [DATABASE SEEDER NOTICE] Seeding info:`, err.message);
   }
@@ -207,6 +225,15 @@ async function initDatabase() {
         status VARCHAR(20) DEFAULT 'ACTIVE',
         expires_at TIMESTAMP NULL DEFAULT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    // 7. Create 'system_settings' table for Manual Payment & System Config
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS system_settings (
+        setting_key VARCHAR(100) PRIMARY KEY,
+        setting_value TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 

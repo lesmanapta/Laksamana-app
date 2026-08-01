@@ -352,4 +352,69 @@ router.delete('/tokens/:code', async (req, res) => {
   }
 });
 
+// POST /api/admin/orders/:id/approve-manual - Approve manual payment and start processing
+router.post('/orders/:id/approve-manual', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const db = getPool();
+    const [rows] = await db.query('SELECT * FROM orders WHERE id = ?', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Pesanan tidak ditemukan' });
+    }
+
+    const order = rows[0];
+    await db.query('UPDATE orders SET status = "PROCESSING" WHERE id = ?', [id]);
+
+    // Send WA Notification to customer
+    const waMsg = `🎉 *PEMBAYARAN MANUAL DI-APPROVE!*\n\nHalo, pembayaran manual untuk Order *${id}* (${order.service_name}) telah dikonfirmasi dan *DI-APPROVE* oleh Admin Laksamana.\n\nDokumen Anda sedang diproses oleh sistem. Hasil laporan resmi akan langsung dikirimkan ke WhatsApp ini setelah selesai!\n🌐 https://laksamana.biz.id`;
+    sendWhatsAppMessage(order.whatsapp, waMsg);
+
+    res.json({ message: `Pembayaran manual order ${id} berhasil di-approve! Status berubah ke PROCESSING.`, orderId: id });
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal approve pembayaran manual: ' + err.message });
+  }
+});
+
+// GET /api/admin/settings - Fetch all system settings
+router.get('/settings', async (req, res) => {
+  try {
+    const db = getPool();
+    const [rows] = await db.query('SELECT setting_key, setting_value FROM system_settings');
+    const settings = {
+      manual_payment_enabled: 'true',
+      manual_wa_number: '08117676477',
+      manual_account_name: 'Sumanto Lesmana Putra',
+      manual_ewallet_number: '08117676477',
+      manual_ewallet_types: 'DANA, GoPay, OVO, ShopeePay',
+      manual_qris_url: '',
+      manual_qris_info: 'Scan QRIS Manual Laksamana lalu kirimkan bukti transfer ke WhatsApp 08117676477.'
+    };
+    rows.forEach(r => { settings[r.setting_key] = r.setting_value; });
+    res.json({ settings });
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal mengambil pengaturan sistem: ' + err.message });
+  }
+});
+
+// POST /api/admin/settings - Save system settings
+router.post('/settings', async (req, res) => {
+  const { settings } = req.body;
+  if (!settings || typeof settings !== 'object') {
+    return res.status(400).json({ error: 'Settings object required' });
+  }
+
+  try {
+    const db = getPool();
+    for (const [key, val] of Object.entries(settings)) {
+      await db.query(`
+        INSERT INTO system_settings (setting_key, setting_value)
+        VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value);
+      `, [key, String(val)]);
+    }
+    res.json({ message: 'Pengaturan pembayaran & sistem berhasil diperbarui!' });
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal menyimpan pengaturan: ' + err.message });
+  }
+});
+
 module.exports = router;

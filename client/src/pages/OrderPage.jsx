@@ -12,7 +12,8 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
   const [plagiarismFile, setPlagiarismFile] = useState(null);
   const [whatsapp, setWhatsapp] = useState('');
   const [email, setEmail] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('Midtrans QRIS / GoPay');
+  const [paymentMethod, setPaymentMethod] = useState('MANUAL_EWALLET'); // MANUAL_EWALLET, MANUAL_QRIS, MIDTRANS_GATEWAY
+  const [manualResponse, setManualResponse] = useState(null);
   const [tokenCodeInput, setTokenCodeInput] = useState('');
   const [appliedToken, setAppliedToken] = useState(null);
   const [tokenLoading, setTokenLoading] = useState(false);
@@ -63,10 +64,13 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
   };
 
   const handleValidateToken = async () => {
-    if (!tokenCodeInput.trim()) return;
+    if (!tokenCodeInput || !tokenCodeInput.trim()) {
+      setTokenMsg('Ketik kode token terlebih dahulu');
+      return;
+    }
+
     setTokenLoading(true);
     setTokenMsg('');
-    setError('');
 
     try {
       const res = await fetch('/api/orders/validate-token', {
@@ -76,13 +80,13 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
       });
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.error || 'Gagal memvalidasi token');
+      if (!res.ok) throw new Error(data.error || 'Token tidak valid');
 
       setAppliedToken(data.token);
       setTokenMsg(`✅ ${data.message}`);
     } catch (err) {
-      setAppliedToken(null);
       setTokenMsg(`❌ ${err.message}`);
+      setAppliedToken(null);
     } finally {
       setTokenLoading(false);
     }
@@ -90,24 +94,18 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!isServiceActive(activeService)) {
-      setError('Layanan ini sedang tidak aktif / belum tersedia. Silakan pilih layanan lain.');
-      return;
-    }
+    setError('');
+
     if (!file) {
-      setError('Harap pilih file dokumen (.pdf atau .docx) terlebih dahulu!');
-      return;
-    }
-    if (isParafrase && !plagiarismFile) {
-      setError('Untuk Jasa Parafrase, Anda wajib mengunggah File Hasil Cek Plagiasi / Turnitin!');
-      return;
-    }
-    if (!whatsapp) {
-      setError('Nomor WhatsApp wajib diisi untuk penerimaan hasil laporan & notifikasi.');
+      setError('Silakan pilih file dokumen karya tulis Anda terlebih dahulu.');
       return;
     }
 
-    setError('');
+    if (!whatsapp) {
+      setError('Nomor WhatsApp wajib diisi untuk notifikasi hasil cek otomatis.');
+      return;
+    }
+
     setSubmitting(true);
 
     const filterOptions = {
@@ -145,8 +143,12 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
 
       setCreatedOrder(data.order);
 
-      // Trigger Midtrans Snap payment popup using the dedicated transaction Snap token if not using token
-      if (!appliedToken && window.snap && data.snapToken && !data.snapToken.includes('SNAP-SIMULATED')) {
+      if (data.isManualPayment) {
+        setManualResponse({
+          waConfirmUrl: data.waConfirmUrl,
+          manualSettings: data.manualSettings
+        });
+      } else if (!appliedToken && window.snap && data.snapToken && !data.snapToken.includes('SNAP-SIMULATED')) {
         window.snap.pay(data.snapToken, {
           onSuccess: async function (result) {
             try {
@@ -414,23 +416,63 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
 
               {!appliedToken && (
                 <div className="mb-4">
-                  <label className="form-label fw-semibold small mb-2 text-secondary">METODE PEMBAYARAN MIDTRANS</label>
+                  <label className="form-label fw-semibold small mb-2 text-secondary">PILIH METODE PEMBAYARAN</label>
                   <div className="row g-2">
-                    {['Midtrans QRIS / GoPay', 'Bank Transfer (BCA/Mandiri/BRI)', 'ShopeePay / OVO / Dana'].map(pm => (
-                      <div key={pm} className="col-md-4">
+                    {[
+                      { id: 'MANUAL_EWALLET', title: '💙 DANA / GoPay (Manual Admin Approve)', subtitle: 'No. WA 08117676477 a.n. Sumanto Lesmana Putra' },
+                      { id: 'MANUAL_QRIS', title: '📷 QRIS Manual (Scan QRIS & Approve)', subtitle: 'Konfirmasi bukti transfer ke WhatsApp 08117676477' },
+                      { id: 'MIDTRANS_GATEWAY', title: '⚡ Midtrans Automatic (QRIS / GoPay / ShopeePay)', subtitle: 'Pembayaran otomatis diproses 24 Jam' }
+                    ].map(pm => (
+                      <div key={pm.id} className="col-12 col-md-4">
                         <div 
-                          onClick={() => setPaymentMethod(pm)}
-                          className={`p-3 rounded-3 border cursor-pointer text-center small fw-medium ${paymentMethod === pm ? 'border-success bg-mint-light text-mint-heading fw-bold' : 'bg-light text-secondary'}`}
+                          onClick={() => setPaymentMethod(pm.id)}
+                          className={`p-3 rounded-4 border cursor-pointer h-100 d-flex flex-column justify-content-between transition-all ${paymentMethod === pm.id ? 'border-success bg-mint-light text-mint-heading fw-bold shadow-sm' : 'bg-white text-secondary'}`}
+                          style={{ borderColor: paymentMethod === pm.id ? '#10b981' : '#e2e8f0' }}
                         >
-                          {pm}
+                          <div>
+                            <div className="fw-bold mb-1" style={{ fontSize: '0.88rem' }}>{pm.title}</div>
+                            <small className="text-muted d-block" style={{ fontSize: '0.73rem' }}>{pm.subtitle}</small>
+                          </div>
+                          {paymentMethod === pm.id && (
+                            <div className="mt-2 text-end">
+                              <span className="badge bg-mint-primary text-white rounded-pill px-2 py-0.5" style={{ fontSize: '0.65rem' }}>Terpilih</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
                   </div>
+
+                  {/* Manual Payment Information Box */}
+                  {paymentMethod === 'MANUAL_EWALLET' && (
+                    <div className="alert bg-white border border-primary border-opacity-25 rounded-4 p-3 mt-3 shadow-sm">
+                      <div className="fw-bold text-primary mb-1 d-flex align-items-center gap-1">
+                        <i className="ri-wallet-3-line fs-5"></i> Rekening Pembayaran Manual DANA / GoPay
+                      </div>
+                      <div className="small text-secondary">
+                        • No. DANA / GoPay: <strong className="text-dark font-monospace fs-6">08117676477</strong><br />
+                        • Atas Nama: <strong>Sumanto Lesmana Putra</strong><br />
+                        <span className="text-muted mt-1 d-block">
+                          💡 <em>Setelah klik "Konfirmasi & Lanjutkan", Anda akan mendapatkan tombol langsung untuk mengirimkan bukti bayar ke WhatsApp Admin (08117676477).</em>
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {paymentMethod === 'MANUAL_QRIS' && (
+                    <div className="alert bg-white border border-success border-opacity-25 rounded-4 p-3 mt-3 shadow-sm">
+                      <div className="fw-bold text-mint-heading mb-1 d-flex align-items-center gap-1">
+                        <i className="ri-qr-code-line fs-5 text-mint-primary"></i> QRIS Manual Laksamana
+                      </div>
+                      <div className="small text-secondary">
+                        Scan QRIS Manual Laksamana lalu konfirmasikan bukti transfer ke WhatsApp <strong>08117676477</strong> (a.n. Sumanto Lesmana Putra).
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
-              <div className="bg-mint-light p-3 rounded-3 d-flex align-items-center justify-content-between mb-4 border border-success border-opacity-10">
+              <div className="bg-mint-light p-3 rounded-4 d-flex align-items-center justify-content-between mb-4 border border-success border-opacity-10">
                 <span className="fw-medium text-mint-heading">Total Pembayaran:</span>
                 <span className="fs-4 fw-extrabold text-mint-primary">
                   {appliedToken ? (
@@ -450,7 +492,11 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
                   <span><span className="spinner-border spinner-border-sm me-2"></span>Memproses Pemesanan...</span>
                 ) : (
                   <span>
-                    {appliedToken ? 'Proses Dokumen Gratis via Token Paket 🎟️' : 'Bayar via Midtrans & Proses Dokumen 💳'}
+                    {appliedToken 
+                      ? 'Proses Dokumen Gratis via Token Paket 🎟️' 
+                      : (paymentMethod.startsWith('MANUAL') 
+                          ? 'Konfirmasi & Lanjutkan Pembayaran Manual 📲' 
+                          : 'Bayar via Midtrans & Proses Dokumen 💳')}
                   </span>
                 )}
               </button>
@@ -459,33 +505,65 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
         </div>
       </div>
 
-      {/* MODAL NOTIFIKASI SUKSES PROSES PESANAN */}
+      {/* MODAL NOTIFIKASI SUKSES PROSES PESANAN & KONFIRMASI MANUAL WA */}
       {createdOrder && (
         <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content border-0 rounded-4 shadow-lg p-4 text-center">
               <div className="icon-mint-box mx-auto mb-3" style={{ width: '64px', height: '64px' }}>
-                <i className="ri-checkbox-circle-fill fs-1 text-mint-primary"></i>
+                <i className={manualResponse ? "ri-whatsapp-line fs-1 text-success" : "ri-checkbox-circle-fill fs-1 text-mint-primary"}></i>
               </div>
 
-              <h4 className="fw-bold text-mint-heading mb-2">Pesanan Berhasil Dikirim!</h4>
+              <h4 className="fw-bold text-mint-heading mb-2">
+                {manualResponse ? 'Pesanan Berhasil dibuat!' : 'Pesanan Berhasil Dikirim!'}
+              </h4>
               <p className="text-secondary small mb-3">
                 Dokumen <b>{createdOrder.fileName}</b> telah sukses diterima sistem Laksamana dengan Kode Order: <b className="text-mint-primary">{createdOrder.id}</b>
               </p>
 
-              <div className="alert bg-mint-light border border-success border-opacity-25 rounded-3 text-start small p-3 mb-4">
-                <div className="fw-bold text-mint-heading mb-1 d-flex align-items-center gap-1">
-                  <i className="ri-whatsapp-line text-success fs-5"></i> Pengiriman Hasil ke WhatsApp
+              {/* MANUAL PAYMENT INSTRUCTIONS & WHATSAPP BUTTON */}
+              {manualResponse ? (
+                <div className="mb-4">
+                  <div className="alert bg-mint-light border border-success border-opacity-25 rounded-4 text-start small p-3 mb-3">
+                    <div className="fw-bold text-mint-heading mb-2 border-bottom pb-1">
+                      💳 Rincian Pembayaran Manual ({createdOrder.paymentMethod})
+                    </div>
+                    <div className="text-secondary mb-1">
+                      • Total Bayar: <strong className="text-mint-primary fs-6">Rp {createdOrder.amount ? createdOrder.amount.toLocaleString('id-ID') : 0}</strong>
+                    </div>
+                    <div className="text-secondary mb-1">
+                      • DANA / GoPay: <strong className="text-dark font-monospace">08117676477</strong> (a.n. Sumanto Lesmana Putra)
+                    </div>
+                    <div className="text-muted mt-2" style={{ fontSize: '0.78rem' }}>
+                      Silakan lakukan transfer sesuai total di atas, lalu klik tombol di bawah untuk langsung mengirimkan bukti bayar ke WhatsApp Admin agar segera di-approve!
+                    </div>
+                  </div>
+
+                  <a 
+                    href={manualResponse.waConfirmUrl} 
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="btn btn-success btn-lg w-100 rounded-pill py-3 fw-bold mb-2 shadow-sm d-flex align-items-center justify-content-center gap-2"
+                    style={{ background: '#25d366', borderColor: '#25d366' }}
+                  >
+                    <i className="ri-whatsapp-fill fs-4"></i> Konfirmasi Bukti Bayar ke WhatsApp
+                  </a>
                 </div>
-                <div className="text-secondary">
-                  Dokumen Anda sedang diproses oleh sistem. Setelah pemeriksaan selesai, <b>link download resmi dan file laporan</b> akan dikirimkan otomatis ke WhatsApp Anda (<b>{createdOrder.whatsapp}</b>).
+              ) : (
+                <div className="alert bg-mint-light border border-success border-opacity-25 rounded-3 text-start small p-3 mb-4">
+                  <div className="fw-bold text-mint-heading mb-1 d-flex align-items-center gap-1">
+                    <i className="ri-whatsapp-line text-success fs-5"></i> Pengiriman Hasil ke WhatsApp
+                  </div>
+                  <div className="text-secondary">
+                    Dokumen Anda sedang diproses oleh sistem. Setelah pemeriksaan selesai, <b>link download resmi dan file laporan</b> akan dikirimkan otomatis ke WhatsApp Anda (<b>{createdOrder.whatsapp}</b>).
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="d-flex gap-2">
                 <button 
                   onClick={() => onOrderSuccess(createdOrder)} 
-                  className="btn btn-mint-primary w-100 rounded-pill py-2.5 fw-bold"
+                  className="btn btn-outline-secondary w-100 rounded-pill py-2.5 fw-bold"
                 >
                   Lacak Pesanan Saya <i className="ri-search-line me-1"></i>
                 </button>

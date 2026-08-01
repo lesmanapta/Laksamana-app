@@ -43,7 +43,7 @@ async function createMidtransTransaction(order, transactionId) {
         name: (order.serviceName || 'Cek Plagiasi No-Repository').substring(0, 50)
       }
     ],
-    enabled_payments: ['gopay', 'qris', 'bank_transfer', 'shopeepay'],
+    enabled_payments: ['gopay', 'qris', 'shopeepay'],
     expiry: {
       expiry_duration: 30,
       unit: 'minute'

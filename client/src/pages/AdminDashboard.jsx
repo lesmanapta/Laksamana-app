@@ -9,11 +9,11 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
 
   const getInitialTab = () => {
     const hash = window.location.hash.replace('#', '').toUpperCase();
-    if (['ORDERS', 'SERVICES', 'PACKAGES', 'TOKENS', 'USERS'].includes(hash)) {
+    if (['ORDERS', 'SERVICES', 'PACKAGES', 'TOKENS', 'USERS', 'SETTINGS'].includes(hash)) {
       return hash;
     }
     const savedTab = localStorage.getItem('adminActiveTab');
-    if (savedTab && ['ORDERS', 'SERVICES', 'PACKAGES', 'TOKENS', 'USERS'].includes(savedTab)) {
+    if (savedTab && ['ORDERS', 'SERVICES', 'PACKAGES', 'TOKENS', 'USERS', 'SETTINGS'].includes(savedTab)) {
       return savedTab;
     }
     return 'ORDERS';
@@ -77,10 +77,56 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
 
   const isSuperAdmin = user && (user.role === 'superadmin' || user.role === 'admin');
 
+  const [systemSettings, setSystemSettings] = useState({
+    manual_payment_enabled: 'true',
+    manual_wa_number: '08117676477',
+    manual_account_name: 'Sumanto Lesmana Putra',
+    manual_ewallet_number: '08117676477',
+    manual_ewallet_types: 'DANA, GoPay, OVO, ShopeePay',
+    manual_qris_url: '',
+    manual_qris_info: 'Scan QRIS Manual Laksamana lalu kirimkan bukti transfer ke WhatsApp 08117676477.'
+  });
+  const [settingsSaving, setSettingsSaving] = useState(false);
+
   const getAdminHeaders = () => ({
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${localStorage.getItem('accessToken') || ''}`
   });
+
+  const handleApproveManual = async (orderId) => {
+    if (!window.confirm(`Approve pembayaran manual untuk order ${orderId}?`)) return;
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/approve-manual`, {
+        method: 'POST',
+        headers: getAdminHeaders()
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal approve pembayaran manual');
+      setMessage(`✅ ${data.message}`);
+      fetchAdminData();
+    } catch (err) {
+      setMessage(`❌ ${err.message}`);
+    }
+  };
+
+  const handleSaveSettings = async (e) => {
+    e.preventDefault();
+    setSettingsSaving(true);
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: getAdminHeaders(),
+        body: JSON.stringify({ settings: systemSettings })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal menyimpan pengaturan');
+      setMessage(`✅ ${data.message}`);
+    } catch (err) {
+      setMessage(`❌ ${err.message}`);
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
 
   const fetchAdminData = async () => {
     setLoading(true);
@@ -88,12 +134,13 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
     const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
 
     try {
-      const [resOrders, resServices, resPackages, resUsers, resTokens] = await Promise.allSettled([
+      const [resOrders, resServices, resPackages, resUsers, resTokens, resSettings] = await Promise.allSettled([
         fetch('/api/admin/orders', { headers }),
         fetch('/api/admin/services', { headers }),
         fetch('/api/admin/packages', { headers }),
         fetch('/api/admin/users', { headers }),
-        fetch('/api/admin/tokens', { headers })
+        fetch('/api/admin/tokens', { headers }),
+        fetch('/api/admin/settings', { headers })
       ]);
 
       if (resOrders.status === 'fulfilled' && resOrders.value.ok) {
@@ -115,6 +162,12 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
       if (resTokens.status === 'fulfilled' && resTokens.value.ok) {
         const data = await resTokens.value.json();
         setTokensList(data.tokens || []);
+      }
+      if (resSettings.status === 'fulfilled' && resSettings.value.ok) {
+        const data = await resSettings.value.json();
+        if (data.settings) {
+          setSystemSettings(prev => ({ ...prev, ...data.settings }));
+        }
       }
     } catch (err) {
       console.error('Error fetching admin data:', err);
@@ -534,7 +587,8 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
             { id: 'SERVICES', label: '🛠️ Layanan', count: servicesList.length },
             { id: 'PACKAGES', label: '📦 Paket', count: packagesList.length },
             { id: 'TOKENS', label: '🎟️ Token', count: tokensList.length },
-            { id: 'USERS', label: '👥 User', count: usersList.length }
+            { id: 'USERS', label: '👥 User', count: usersList.length },
+            { id: 'SETTINGS', label: '⚙️ Settings', count: 0 }
           ].map(t => (
             <button
               key={t.id}
@@ -616,6 +670,14 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
               <span><i className="ri-user-settings-line me-2 fs-5"></i> Kelola Pengguna</span>
               <span className="badge rounded-pill bg-slate-700 text-slate-300" style={{ background: '#334155' }}>{usersList.length}</span>
             </button>
+
+            <button 
+              className={`nav-link text-start rounded-3 px-3 py-2.5 border-0 d-flex align-items-center justify-content-between ${activeTab === 'SETTINGS' ? 'fw-bold text-white' : 'text-slate-400'}`}
+              style={activeTab === 'SETTINGS' ? { background: '#059669', color: '#fff' } : { color: '#cbd5e1', background: 'transparent' }}
+              onClick={() => handleTabChange('SETTINGS')}
+            >
+              <span><i className="ri-settings-4-line me-2 fs-5"></i> Pengaturan Pembayaran</span>
+            </button>
           </nav>
         </div>
 
@@ -668,6 +730,7 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
               {activeTab === 'PACKAGES' && '📦 Kelola Paket Kuota'}
               {activeTab === 'TOKENS' && '🎟️ Kelola Token & Kupon'}
               {activeTab === 'USERS' && '👥 Kelola Pengguna Sistem'}
+              {activeTab === 'SETTINGS' && '⚙️ Pengaturan Pembayaran & Sistem'}
             </h4>
           </div>
 
@@ -740,26 +803,25 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
         </div>
 
         {/* TAB ORDERS */}
-
-      {/* TAB ORDERS */}
-      {activeTab === 'ORDERS' && (
-        <div>
-          <div className="d-flex gap-2 mb-4 overflow-x-auto pb-2">
-            {[
-              { key: 'ALL', label: 'Semua Pesanan' },
-              { key: 'PARAFRASE', label: '📝 Jasa Parafrase' },
-              { key: 'TURNITIN', label: '🛡️ Turnitin No-Repo' },
-              { key: 'PROCESSING', label: '⏳ Perlu Diproses' }
-            ].map(f => (
-              <button 
-                key={f.key}
-                onClick={() => setFilter(f.key)}
-                className={`btn btn-sm rounded-pill px-3 fw-medium ${filter === f.key ? 'btn-custom-orange' : 'btn-light border text-secondary'}`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
+        {activeTab === 'ORDERS' && (
+          <div>
+            <div className="d-flex gap-2 mb-4 overflow-x-auto pb-2">
+              {[
+                { key: 'ALL', label: 'Semua Pesanan' },
+                { key: 'PENDING_VERIFICATION', label: '⏳ Verifikasi Manual' },
+                { key: 'PARAFRASE', label: '📝 Jasa Parafrase' },
+                { key: 'TURNITIN', label: '🛡️ Turnitin No-Repo' },
+                { key: 'PROCESSING', label: '⏳ Perlu Diproses' }
+              ].map(f => (
+                <button 
+                  key={f.key}
+                  onClick={() => setFilter(f.key)}
+                  className={`btn btn-sm rounded-pill px-3 fw-medium ${filter === f.key ? 'btn-custom-orange' : 'btn-light border text-secondary'}`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
 
           <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
             <div className="table-responsive">
@@ -813,9 +875,12 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
                             </div>
                           </td>
                           <td>
-                            <span className={`badge rounded-pill ${ord.status === 'COMPLETED' ? 'bg-success' : 'bg-warning text-dark'}`}>
-                              {ord.status}
+                            <span className={`badge rounded-pill ${ord.status === 'COMPLETED' ? 'bg-success' : (ord.status === 'PENDING_VERIFICATION' ? 'bg-warning text-dark border border-warning' : 'bg-info text-dark')}`}>
+                              {ord.status === 'PENDING_VERIFICATION' ? '⏳ Verifikasi Manual' : ord.status}
                             </span>
+                            {ord.paymentMethod && (
+                              <small className="d-block text-muted mt-1" style={{ fontSize: '0.7rem' }}>{ord.paymentMethod}</small>
+                            )}
                           </td>
                           <td className="small">
                             <div className="text-secondary">
@@ -831,6 +896,14 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
                             </div>
                           </td>
                           <td className="text-end pe-4">
+                            {(ord.status === 'PENDING_VERIFICATION' || (ord.paymentMethod && ord.paymentMethod.includes('Manual') && ord.status !== 'COMPLETED' && ord.status !== 'PROCESSING')) && (
+                              <button 
+                                onClick={() => handleApproveManual(ord.id)}
+                                className="btn btn-sm btn-success rounded-pill px-2.5 py-1 me-1 fw-bold"
+                              >
+                                <i className="ri-checkbox-circle-line me-1"></i> Approve
+                              </button>
+                            )}
                             <button 
                               onClick={() => setSelectedOrder(ord)}
                               className="btn btn-sm btn-custom-purple rounded-pill px-3 fw-medium"
@@ -1168,6 +1241,96 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* TAB SETTINGS - Pengaturan Pembayaran Manual */}
+      {activeTab === 'SETTINGS' && (
+        <div className="card border-0 shadow-sm rounded-4 p-4 bg-white">
+          <h5 className="fw-bold mb-3 text-slate-800 border-bottom pb-2">
+            ⚙️ Pengaturan Metode Pembayaran Manual (DANA / GoPay / QRIS)
+          </h5>
+
+          <form onSubmit={handleSaveSettings}>
+            <div className="row g-3">
+              <div className="col-12 col-md-6">
+                <label className="form-label small fw-bold text-secondary">STATUS PEMBAYARAN MANUAL</label>
+                <select 
+                  className="form-select rounded-3"
+                  value={systemSettings.manual_payment_enabled || 'true'}
+                  onChange={(e) => setSystemSettings({ ...systemSettings, manual_payment_enabled: e.target.value })}
+                >
+                  <option value="true">✅ AKTIF (Tampilkan Opsi Manual ke Pengguna)</option>
+                  <option value="false">❌ NON-AKTIF (Hanya Pembayaran Midtrans Gateway)</option>
+                </select>
+              </div>
+
+              <div className="col-12 col-md-6">
+                <label className="form-label small fw-bold text-secondary">NOMOR WA UNTUK KONFIRMASI BUKTI TRANSFER</label>
+                <input 
+                  type="text" 
+                  className="form-control rounded-3 font-monospace fw-bold"
+                  placeholder="Contoh: 08117676477"
+                  value={systemSettings.manual_wa_number || ''}
+                  onChange={(e) => setSystemSettings({ ...systemSettings, manual_wa_number: e.target.value })}
+                  required
+                />
+                <small className="text-muted">Tombol WhatsApp di akhir pemesanan akan otomatis diarahkan ke nomor ini.</small>
+              </div>
+
+              <div className="col-12 col-md-6">
+                <label className="form-label small fw-bold text-secondary">NAMA PEMILIK REKENING / E-WALLET</label>
+                <input 
+                  type="text" 
+                  className="form-control rounded-3 fw-bold"
+                  placeholder="Contoh: Sumanto Lesmana Putra"
+                  value={systemSettings.manual_account_name || ''}
+                  onChange={(e) => setSystemSettings({ ...systemSettings, manual_account_name: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="col-12 col-md-6">
+                <label className="form-label small fw-bold text-secondary">NOMOR DANA / GOPAY / OVO MANUAL</label>
+                <input 
+                  type="text" 
+                  className="form-control rounded-3 font-monospace"
+                  placeholder="Contoh: 08117676477"
+                  value={systemSettings.manual_ewallet_number || ''}
+                  onChange={(e) => setSystemSettings({ ...systemSettings, manual_ewallet_number: e.target.value })}
+                />
+              </div>
+
+              <div className="col-12">
+                <label className="form-label small fw-bold text-secondary">URL GAMBAR / INSTRUKSI QRIS MANUAL</label>
+                <input 
+                  type="text" 
+                  className="form-control rounded-3 mb-2"
+                  placeholder="Link URL Gambar QRIS (Contoh: https://i.ibb.co/qris.png) atau kosongkan"
+                  value={systemSettings.manual_qris_url || ''}
+                  onChange={(e) => setSystemSettings({ ...systemSettings, manual_qris_url: e.target.value })}
+                />
+                <textarea 
+                  rows="2"
+                  className="form-control rounded-3"
+                  placeholder="Catatan / Instruksi Tambahan QRIS Manual"
+                  value={systemSettings.manual_qris_info || ''}
+                  onChange={(e) => setSystemSettings({ ...systemSettings, manual_qris_info: e.target.value })}
+                ></textarea>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-top d-flex justify-content-end">
+              <button 
+                type="submit" 
+                className="btn btn-emerald px-4 py-2.5 rounded-pill fw-bold"
+                style={{ background: '#059669', borderColor: '#059669', color: '#fff' }}
+                disabled={settingsSaving}
+              >
+                {settingsSaving ? 'Menyimpan...' : '💾 Simpan Pengaturan Pembayaran'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
