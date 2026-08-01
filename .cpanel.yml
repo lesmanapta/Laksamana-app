@@ -6,4 +6,6 @@ deployment:
     - cd $DEPLOYPATH/client && /usr/local/bin/npm install && /usr/local/bin/npm run build
     - cd $DEPLOYPATH/server && /usr/local/bin/npm install --production
     - export PUBLICPATH=/home/smbtrave/public_html
-    - /bin/cp -R $DEPLOYPATH/client/dist/* $PUBLICPATH/
+    - /bin/mkdir -p $PUBLICPATH/assets
+    - /bin/cp -Rf $DEPLOYPATH/client/dist/* $PUBLICPATH/
+
