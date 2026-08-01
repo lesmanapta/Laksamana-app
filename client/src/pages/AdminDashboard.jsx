@@ -192,7 +192,7 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
 
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({
           slug: serviceSlug,
           title: serviceTitle,
@@ -258,7 +258,7 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
 
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({
           name: packageName,
           price: parseInt(packagePrice) || 27500,
