@@ -1,15 +1,18 @@
 // Laksamana App - cPanel Entry Point
-// This file is the startup file for cPanel Node.js App Selector.
-// It loads the server from the server/ subdirectory.
-
 const path = require('path');
+
+// Ensure Node.js searches both root node_modules and server/node_modules
+module.paths.push(path.join(__dirname, 'node_modules'));
+module.paths.push(path.join(__dirname, 'server', 'node_modules'));
 
 // Load .env from server folder if it exists there
 const dotenvPath = path.join(__dirname, 'server', '.env');
-require('dotenv').config({ path: dotenvPath });
-
-// Also try loading .env from root folder
-require('dotenv').config();
+try {
+  require('dotenv').config({ path: dotenvPath });
+} catch (e) {}
+try {
+  require('dotenv').config();
+} catch (e) {}
 
 // Start the Express server
 const express = require('express');

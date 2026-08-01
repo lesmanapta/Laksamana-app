@@ -353,7 +353,6 @@ router.post('/create', cpUpload, async (req, res) => {
       newOrder.snapRedirectUrl = snapRedirectUrl;
     }
 
-    const db = getPool();
     // 1. Insert Into orders Table
     await db.query(`
       INSERT INTO orders (id, service_slug, service_name, file_name, file_path, plagiarism_report_path, file_size, whatsapp, email, payment_method, amount, status, similarity_index, ai_score, page_count, word_count, matched_sources, filter_options, report_download_url)
