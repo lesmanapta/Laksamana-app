@@ -7,7 +7,27 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
   const [tokensList, setTokensList] = useState([]);
   const [usersList, setUsersList] = useState([]);
 
-  const [activeTab, setActiveTab] = useState('ORDERS');
+  const getInitialTab = () => {
+    const hash = window.location.hash.replace('#', '').toUpperCase();
+    if (['ORDERS', 'SERVICES', 'PACKAGES', 'TOKENS', 'USERS'].includes(hash)) {
+      return hash;
+    }
+    const savedTab = localStorage.getItem('adminActiveTab');
+    if (savedTab && ['ORDERS', 'SERVICES', 'PACKAGES', 'TOKENS', 'USERS'].includes(savedTab)) {
+      return savedTab;
+    }
+    return 'ORDERS';
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab);
+
+  const handleTabChange = (tabName) => {
+    setActiveTab(tabName);
+    localStorage.setItem('adminActiveTab', tabName);
+    try {
+      window.history.replaceState(null, '', `#${tabName.toLowerCase()}`);
+    } catch (e) {}
+  };
   const [filter, setFilter] = useState('ALL');
   const [loading, setLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -499,7 +519,7 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
             <button 
               className={`nav-link text-start rounded-3 px-3 py-2.5 border-0 d-flex align-items-center justify-content-between ${activeTab === 'ORDERS' ? 'fw-bold text-white' : 'text-slate-400'}`}
               style={activeTab === 'ORDERS' ? { background: '#059669', color: '#fff' } : { color: '#cbd5e1', background: 'transparent' }}
-              onClick={() => setActiveTab('ORDERS')}
+              onClick={() => handleTabChange('ORDERS')}
             >
               <span><i className="ri-file-list-3-line me-2 fs-5"></i> Pesanan Dokumen</span>
               {pendingOrdersCount > 0 && (
@@ -510,7 +530,7 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
             <button 
               className={`nav-link text-start rounded-3 px-3 py-2.5 border-0 d-flex align-items-center justify-content-between ${activeTab === 'SERVICES' ? 'fw-bold text-white' : 'text-slate-400'}`}
               style={activeTab === 'SERVICES' ? { background: '#059669', color: '#fff' } : { color: '#cbd5e1', background: 'transparent' }}
-              onClick={() => setActiveTab('SERVICES')}
+              onClick={() => handleTabChange('SERVICES')}
             >
               <span><i className="ri-tools-line me-2 fs-5"></i> Kelola Layanan</span>
               <span className="badge rounded-pill bg-slate-700 text-slate-300" style={{ background: '#334155' }}>{servicesList.length}</span>
@@ -519,7 +539,7 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
             <button 
               className={`nav-link text-start rounded-3 px-3 py-2.5 border-0 d-flex align-items-center justify-content-between ${activeTab === 'PACKAGES' ? 'fw-bold text-white' : 'text-slate-400'}`}
               style={activeTab === 'PACKAGES' ? { background: '#059669', color: '#fff' } : { color: '#cbd5e1', background: 'transparent' }}
-              onClick={() => setActiveTab('PACKAGES')}
+              onClick={() => handleTabChange('PACKAGES')}
             >
               <span><i className="ri-box-3-line me-2 fs-5"></i> Kelola Paket Kuota</span>
               <span className="badge rounded-pill bg-slate-700 text-slate-300" style={{ background: '#334155' }}>{packagesList.length}</span>
@@ -528,7 +548,7 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
             <button 
               className={`nav-link text-start rounded-3 px-3 py-2.5 border-0 d-flex align-items-center justify-content-between ${activeTab === 'TOKENS' ? 'fw-bold text-white' : 'text-slate-400'}`}
               style={activeTab === 'TOKENS' ? { background: '#059669', color: '#fff' } : { color: '#cbd5e1', background: 'transparent' }}
-              onClick={() => setActiveTab('TOKENS')}
+              onClick={() => handleTabChange('TOKENS')}
             >
               <span><i className="ri-coupon-3-line me-2 fs-5"></i> Kelola Token Paket</span>
               <span className="badge rounded-pill bg-slate-700 text-slate-300" style={{ background: '#334155' }}>{tokensList.length}</span>
@@ -537,7 +557,7 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
             <button 
               className={`nav-link text-start rounded-3 px-3 py-2.5 border-0 d-flex align-items-center justify-content-between ${activeTab === 'USERS' ? 'fw-bold text-white' : 'text-slate-400'}`}
               style={activeTab === 'USERS' ? { background: '#059669', color: '#fff' } : { color: '#cbd5e1', background: 'transparent' }}
-              onClick={() => setActiveTab('USERS')}
+              onClick={() => handleTabChange('USERS')}
             >
               <span><i className="ri-user-settings-line me-2 fs-5"></i> Kelola Pengguna</span>
               <span className="badge rounded-pill bg-slate-700 text-slate-300" style={{ background: '#334155' }}>{usersList.length}</span>
