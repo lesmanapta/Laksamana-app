@@ -120,7 +120,13 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
         headers: getAdminHeaders(),
         body: JSON.stringify({ settings: systemSettings })
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (jsonErr) {
+        throw new Error('Server cPanel belum di-restart. Silakan buka cPanel -> Setup Node.js App -> Klik "Restart Application".');
+      }
       if (!res.ok) throw new Error(data.error || 'Gagal menyimpan pengaturan');
       setMessage(`✅ ${data.message}`);
       await fetchAdminData();
@@ -185,9 +191,14 @@ export default function AdminDashboard({ user, onLoginSuccess, onNavigateHome })
         setTokensList(data.tokens || []);
       }
       if (resSettings.status === 'fulfilled' && resSettings.value.ok) {
-        const data = await resSettings.value.json();
-        if (data.settings) {
-          setSystemSettings(prev => ({ ...prev, ...data.settings }));
+        try {
+          const text = await resSettings.value.text();
+          const data = JSON.parse(text);
+          if (data.settings) {
+            setSystemSettings(prev => ({ ...prev, ...data.settings }));
+          }
+        } catch (e) {
+          console.warn('Backend server returned HTML fallback (cPanel restart required).');
         }
       }
     } catch (err) {
