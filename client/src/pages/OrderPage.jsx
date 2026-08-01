@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 
 export default function OrderPage({ selectedService, services, onOrderSuccess }) {
-  const activeServicesList = services.filter(s => s.active !== false);
-  const initialService = (selectedService && selectedService.active !== false) 
+  const isServiceActive = (s) => s && (s.active === true || s.active === 1 || s.active === '1');
+  const activeServicesList = services.filter(isServiceActive);
+  const initialService = (selectedService && isServiceActive(selectedService)) 
     ? selectedService 
     : (activeServicesList[0] || services[0]);
 
@@ -30,9 +31,9 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
   const [createdOrder, setCreatedOrder] = useState(null);
 
   useEffect(() => {
-    if (selectedService && selectedService.active !== false) {
+    if (selectedService && isServiceActive(selectedService)) {
       setActiveService(selectedService);
-    } else if (!activeService || activeService.active === false) {
+    } else if (!activeService || !isServiceActive(activeService)) {
       if (activeServicesList.length > 0) {
         setActiveService(activeServicesList[0]);
       }
@@ -89,7 +90,7 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (activeService && activeService.active === false) {
+    if (!isServiceActive(activeService)) {
       setError('Layanan ini sedang tidak aktif / belum tersedia. Silakan pilih layanan lain.');
       return;
     }
@@ -196,12 +197,12 @@ export default function OrderPage({ selectedService, services, onOrderSuccess })
                   value={activeService ? activeService.id : ''}
                   onChange={(e) => {
                     const found = services.find(s => s.id === e.target.value);
-                    if (found && found.active !== false) {
+                    if (found && isServiceActive(found)) {
                       setActiveService(found);
                     }
                   }}
                 >
-                  {(activeServicesList.length > 0 ? activeServicesList : services).map(s => (
+                  {(activeServicesList.length > 0 ? activeServicesList : services.filter(isServiceActive)).map(s => (
                     <option key={s.id} value={s.id}>
                       {s.title} — {s.unit === 'kata' ? 'Rp 10 / kata' : `Rp ${s.price.toLocaleString('id-ID')} / ${s.unit}`}
                     </option>

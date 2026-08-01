@@ -49,12 +49,16 @@ async function seedDefaultData(poolConnection) {
       await poolConnection.query(`
         INSERT INTO services (id, slug, title, subtitle, icon, price, unit, max_pages, description, active) VALUES
         ('cek-plagiasi', 'cek-plagiasi', 'Cek Plagiasi No-Repository', 'Deteksi plagiarisme dokumen via Turnitin', 'ri-file-line', 10000, 'file', 800, 'Pengecekan keaslian tulisan cepat 24 jam tanpa menyimpan dokumen ke repository Turnitin.', 1),
-        ('cek-drillbit', 'cek-drillbit', 'Cek Drillbit (Per Kata)', 'Cek plagiarisme komprehensif dengan Drillbit', 'ri-file-search-line', 10, 'kata', 500, 'Solusi pemeriksaan plagiasi jurnal & skripsi berbasis algoritma Drillbit (Tarif Rp 10/kata).', 1),
+        ('cek-drillbit', 'cek-drillbit', 'Cek Drillbit (Per Kata)', 'Cek plagiarisme komprehensif dengan Drillbit', 'ri-file-search-line', 10, 'kata', 500, 'Solusi pemeriksaan plagiasi jurnal & skripsi berbasis algoritma Drillbit (Tarif Rp 10/kata).', 0),
         ('parafrase', 'parafrase', 'Jasa Parafrase', 'Ubah teks tanpa menghilangkan makna asli', 'ri-loop-left-line', 35000, 'halaman', 100, 'Layanan penulisan ulang profesional untuk menurunkan skor Turnitin secara signifikan.', 1),
         ('gptzero', 'gptzero', 'Cek AI GPTZero', 'Deteksi tulisan buatan AI (ChatGPT, Claude, Gemini)', 'ri-search-eye-line', 15000, 'file', 300, 'Analisis mendalam persentase konten buatan AI dengan laporan skor probabilitas detail.', 0),
         ('humanizer', 'humanizer', 'Humanize File AI GPTZero', 'Ubah teks AI menjadi terasa sangat manusiawi', 'ri-robot-2-line', 25000, 'file', 200, 'Menghilangkan pola sintaksis buatan AI sehingga lolos deteksi GPTZero dan Turnitin AI.', 0);
       `);
       console.log('🌱 [DATABASE SEEDER] Default services inserted into MySQL.');
+    } else {
+      // Ensure only Cek Plagiasi & Jasa Parafrase are active
+      await poolConnection.query(`UPDATE services SET active = 1 WHERE id IN ('cek-plagiasi', 'parafrase')`);
+      await poolConnection.query(`UPDATE services SET active = 0 WHERE id IN ('cek-drillbit', 'gptzero', 'humanizer')`);
     }
 
     // 4. Seed Default Packages
