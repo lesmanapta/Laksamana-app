@@ -65,20 +65,28 @@ async function runTurnitinWorker(filePath, fileName, orderId, filterOptions = {}
 
   let browser;
   try {
-    const puppeteer = require('puppeteer');
+    let puppeteerModule;
+    try {
+      puppeteerModule = (await import('puppeteer')).default;
+    } catch (e) {
+      puppeteerModule = (await import('puppeteer-core')).default;
+    }
 
-    // Detect Chrome executable path (shared hosting compatibility)
+    // Detect Chrome executable path (Windows & Linux shared hosting compatibility)
     const chromePaths = [
-      // Puppeteer bundled Chrome
-      undefined,
-      // Common Linux paths on cPanel servers
+      // Windows standard paths
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+      // Common Linux paths on VPS/cPanel servers
       '/usr/bin/chromium-browser',
       '/usr/bin/chromium',
       '/usr/bin/google-chrome',
       '/usr/bin/google-chrome-stable',
+      // Puppeteer bundled Chrome (if available)
+      undefined,
       // Puppeteer cache
-      path.join(process.env.HOME || '/home/smbtrave', '.cache', 'puppeteer', 'chrome-headless-shell', 'linux-121.0.6167.85', 'chrome-headless-shell-linux64', 'chrome-headless-shell'),
-      path.join(process.env.HOME || '/home/smbtrave', '.cache', 'puppeteer', 'chrome', 'linux-121.0.6167.85', 'chrome-linux64', 'chrome'),
+      path.join(process.env.HOME || process.env.USERPROFILE || 'C:\\Users\\lesma', '.cache', 'puppeteer', 'chrome-headless-shell', 'linux-121.0.6167.85', 'chrome-headless-shell-linux64', 'chrome-headless-shell'),
     ];
 
     let executablePath = undefined;
@@ -86,13 +94,14 @@ async function runTurnitinWorker(filePath, fileName, orderId, filterOptions = {}
       if (fs.existsSync(p)) {
         try { fs.chmodSync(p, '755'); } catch (e) {}
         executablePath = p;
-        console.log(`🔍 [TURNITIN] Using Chrome at: ${p}`);
+        console.log(`🔍 [TURNITIN] Using Chrome executable at: ${p}`);
         break;
       }
     }
 
-    browser = await puppeteer.launch({
-      headless: 'new',
+    const isHeadless = process.env.HEADLESS_MODE !== 'false';
+    browser = await puppeteerModule.launch({
+      headless: isHeadless ? 'new' : false,
       executablePath,
       args: [
         '--no-sandbox',
@@ -141,11 +150,13 @@ async function runTurnitinWorker(filePath, fileName, orderId, filterOptions = {}
       await page.goto(`https://www.turnitin.com/class_portfolio.asp?cid=${turnitinClassId}`, { waitUntil: 'networkidle2', timeout: 60000 });
     }
 
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
     // ────────────────────────────────────────────────
     // STEP 3: Find Assignment and Click Submit Paper
     // ────────────────────────────────────────────────
     console.log(`📤 [TURNITIN] Step 3: Mencari tombol Submit Paper...`);
-    await page.waitForTimeout(2000);
+    await delay(2000);
 
     // Try to click first "Submit Paper" button in the assignment list
     const submitBtns = await page.$$('a[title*="Submit"], a[href*="submit"], input[value*="Submit"]');
@@ -155,7 +166,7 @@ async function runTurnitinWorker(filePath, fileName, orderId, filterOptions = {}
       if (assignLinks.length > 0) {
         await assignLinks[0].click();
         await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 });
-        await page.waitForTimeout(2000);
+        await delay(2000);
       }
     }
 
@@ -163,7 +174,7 @@ async function runTurnitinWorker(filePath, fileName, orderId, filterOptions = {}
     if (submitBtn) {
       await submitBtn.click();
       await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {});
-      await page.waitForTimeout(2000);
+      await delay(2000);
     }
 
     // ────────────────────────────────────────────────
@@ -186,7 +197,7 @@ async function runTurnitinWorker(filePath, fileName, orderId, filterOptions = {}
     const fileInput = await page.$('input[type="file"]');
     if (fileInput && filePath && fs.existsSync(filePath)) {
       await fileInput.uploadFile(filePath);
-      await page.waitForTimeout(2000);
+      await delay(2000);
     } else if (!filePath || !fs.existsSync(filePath)) {
       throw new Error(`File tidak ditemukan di server: ${filePath}`);
     }
@@ -199,7 +210,7 @@ async function runTurnitinWorker(filePath, fileName, orderId, filterOptions = {}
     }
 
     // Click Confirm if confirmation dialog appears
-    await page.waitForTimeout(2000);
+    await delay(2000);
     const confirmBtn = await page.$('#submit_confirm_btn, input[value="Confirm"], input[value="Yes"]');
     if (confirmBtn) {
       await confirmBtn.click();
@@ -218,7 +229,7 @@ async function runTurnitinWorker(filePath, fileName, orderId, filterOptions = {}
 
     while (!similarityScore && attempts < maxAttempts) {
       attempts++;
-      await page.waitForTimeout(30000); // Wait 30 seconds
+      await delay(30000); // Wait 30 seconds
       await page.reload({ waitUntil: 'networkidle2', timeout: 60000 }).catch(() => {});
 
       // Try multiple selectors for similarity score

@@ -36,8 +36,12 @@ app.use(express.urlencoded({ extended: true }));
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'server/uploads')));
 
-// Dedicated settings route (Must be mounted BEFORE adminRoutes to prevent 404 falling through)
+// Mount API Routes
 app.use('/api/admin/settings', settingsRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/services', servicesRoutes);
+app.use('/api/orders', ordersRoutes);
+app.use('/api/admin', adminRoutes);
 app.get('/api/admin/settings', async (req, res) => {
   try {
     let getPool;
@@ -162,6 +166,11 @@ app.get('/api/setup-db', async (req, res) => {
 const clientBuildPath = path.join(__dirname, 'client/dist');
 if (fs.existsSync(clientBuildPath)) {
   app.use(express.static(clientBuildPath));
+
+  // Catch-all API 404 JSON response (never return HTML for /api/ routes)
+  app.all('/api/*', (req, res) => {
+    res.status(404).json({ error: `API route ${req.method} ${req.path} tidak ditemukan.` });
+  });
 
   // All non-API routes serve the React SPA
   app.get('*', (req, res) => {

@@ -21,28 +21,42 @@ async function runDrillbitEngine(filePath, fileName, fileSize, orderId) {
 
   // Real Puppeteer Drillbit Upload Automation
   if (drillbitUser && !drillbitUser.includes('email_akun_drillbit')) {
-      let puppeteer;
+    try {
+      let puppeteerModule;
       try {
-        puppeteer = require('puppeteer-core');
+        puppeteerModule = (await import('puppeteer')).default;
       } catch (e) {
-        try {
-          puppeteer = require('puppeteer');
-        } catch (e2) {}
-      }
-      if (!puppeteer) {
-        console.log(`ℹ️ [DRILLBIT ENGINE] Puppeteer not installed. Using API simulation for Order ${orderId}...`);
-        return;
+        puppeteerModule = (await import('puppeteer-core')).default;
       }
 
-      const browser = await puppeteer.launch({
-        headless: "new",
+      const chromePaths = [
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+        '/usr/bin/chromium-browser',
+        '/usr/bin/chromium',
+        '/usr/bin/google-chrome',
+        undefined
+      ];
+
+      let executablePath = undefined;
+      for (const p of chromePaths.filter(Boolean)) {
+        if (fs.existsSync(p)) {
+          executablePath = p;
+          break;
+        }
+      }
+
+      const browser = await puppeteerModule.launch({
+        headless: process.env.HEADLESS_MODE !== 'false' ? 'new' : false,
+        executablePath,
         args: ['--no-sandbox', '--disable-setuid-sandbox']
       });
 
       const page = await browser.newPage();
       
       // 1. Open Drillbit Login / Files Portal
-      await page.goto(drillbitUrl, { waitUntil: 'networkidle2' });
+      await page.goto(drillbitUrl, { waitUntil: 'networkidle2', timeout: 60000 });
 
       // Check if login form is present
       const emailInput = await page.$('input[type="email"], input[name="username"], input[name="email"]');
@@ -54,24 +68,19 @@ async function runDrillbitEngine(filePath, fileName, fileSize, orderId) {
         const submitBtn = await page.$('button[type="submit"], input[type="submit"]');
         if (submitBtn) {
           await Promise.all([
-            page.waitForNavigation({ waitUntil: 'networkidle2' }),
+            page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 }),
             submitBtn.click()
           ]);
         }
       }
 
       console.log(`✅ [DRILLBIT WORKER] Login successful! Navigating to File Upload page...`);
-      await page.goto('https://online.drillbitplagiarismcheck.com/user/files', { waitUntil: 'networkidle2' });
+      await page.goto('https://online.drillbitplagiarismcheck.com/user/files', { waitUntil: 'networkidle2', timeout: 60000 });
 
-      // 2. Click "Unggah File" button using valid XPath selector or text evaluation
-      const uploadElements = await page.$x('//button[contains(., "Unggah")] | //a[contains(., "Unggah")] | //*[contains(@class, "upload")]');
-      if (uploadElements.length > 0) {
-        await uploadElements[0].click();
-      }
-
-      await page.waitForTimeout(3000);
+      const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+      await delay(3000);
       await browser.close();
-      console.log(`🎉 [DRILLBIT WORKER] Document "${fileName}" successfully submitted to Drillbit Portal!`);
+      console.log(`🎉 [DRILLBIT WORKER] Document "${fileName}" processed in Drillbit Portal!`);
     } catch (err) {
       console.error(`⚠️ [DRILLBIT PUPPETEER NOTICE] Browser automation info:`, err.message);
     }

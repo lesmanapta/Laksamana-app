@@ -42,7 +42,7 @@ async function createMidtransTransaction(order, transactionId) {
       }
     ],
     enabled_payments: ['gopay', 'qris', 'shopeepay'],
-    expiry: {
+    custom_expiry: {
       expiry_duration: 30,
       unit: 'minute'
     }

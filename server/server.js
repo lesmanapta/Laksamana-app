@@ -170,6 +170,11 @@ app.get('/api/setup-db', async (req, res) => {
 const clientBuildPath = path.join(__dirname, '../client/dist');
 if (require('fs').existsSync(clientBuildPath)) {
   app.use(express.static(clientBuildPath));
+
+  app.all('/api/*', (req, res) => {
+    res.status(404).json({ error: `API route ${req.method} ${req.path} tidak ditemukan.` });
+  });
+
   app.get('*', (req, res) => {
     if (!req.path.startsWith('/api/')) {
       res.sendFile(path.join(clientBuildPath, 'index.html'));
