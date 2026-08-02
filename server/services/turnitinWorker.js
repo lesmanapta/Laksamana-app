@@ -109,15 +109,15 @@ async function runTurnitinWorker(filePath, fileName, orderId, filterOptions = {}
         '--disable-dev-shm-usage',
         '--disable-gpu',
         '--no-zygote',
-        '--single-process',
         '--disable-extensions',
-        '--disable-background-networking',
-        '--disable-default-apps',
+        '--disable-blink-features=AutomationControlled'
       ]
     });
 
     const page = await browser.newPage();
     await page.setViewport({ width: 1366, height: 768 });
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36');
+    await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-US,en;q=0.9' });
     await page.setDefaultNavigationTimeout(90000);
     await page.setDefaultTimeout(30000);
 
@@ -125,14 +125,20 @@ async function runTurnitinWorker(filePath, fileName, orderId, filterOptions = {}
     // STEP 1: Login to Turnitin
     // ────────────────────────────────────────────────
     console.log(`🔑 [TURNITIN] Step 1: Logging in as ${turnitinUser}...`);
-    await page.goto('https://www.turnitin.com/login_page.asp?lang=en_us', { waitUntil: 'networkidle2', timeout: 60000 });
+    await page.goto('https://www.turnitin.com/login_page.asp?lang=en_us', { waitUntil: 'domcontentloaded', timeout: 60000 });
     
-    await page.waitForSelector('#email', { timeout: 15000 });
-    await page.type('#email', turnitinUser, { delay: 50 });
-    await page.type('#user_password', turnitinPass, { delay: 50 });
+    // Flexible selector for email and password
+    const emailSelector = '#email, input[name="email"], input[type="email"]';
+    const passSelector = '#user_password, input[name="user_password"], input[type="password"]';
+
+    await page.waitForSelector(emailSelector, { timeout: 30000 });
+    await page.type(emailSelector, turnitinUser, { delay: 50 });
+    await page.type(passSelector, turnitinPass, { delay: 50 });
+
+    const submitBtnSelector = 'input[type="submit"], button[type="submit"]';
     await Promise.all([
-      page.click('input[type="submit"]'),
-      page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 })
+      page.click(submitBtnSelector),
+      page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => {})
     ]);
 
     // Check login success
